@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Minimalist Swipe Deck</title>
+  <style>
+    /* Строгий и стильный сброс стилей */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #121212; /* Темный строгий фон */
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden; /* Запрет скролла */
+      touch-action: none; /* Запрет браузерных жестов */
+    }
+
+    /* Контейнер колоды */
+    #deck-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      perspective: 1000px;
+    }
+
+    /* Карточка */
+    .card {
+      position: absolute;
+      width: 80vw;
+      max-width: 350px;
+      height: 60vh;
+      max-height: 500px;
+      background-color: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      font-weight: 600;
+      user-select: none;
+      will-change: transform;
+      transform-origin: 50% 100%;
+      transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+
+    /* Класс для отключения анимации во время перетаскивания пальцем */
+    .card.dragging {
+      transition: none;
+      cursor: grabbing;
+    }
+
+    /* Нижняя панель с кнопками */
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      padding: 20px 20px 40px;
+    }
+
+    button {
+      background-color: transparent;
+      border: 2px solid #ffffff;
+      color: #ffffff;
+      border-radius: 50%;
+      width: 64px;
+      height: 64px;
+      font-size: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      outline: none;
+      transition: background-color 0.2s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active {
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="deck-container"></div>
+
+  <div id="controls">
+    <button id="btn-left" aria-label="Удалить">✕</button>
+    <button id="btn-right" aria-label="В конец">↻</button>
+  </div>
+
+  <script>
+    const deckContainer = document.getElementById('deck-container');
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+
+    // Данные для карточек
+    let cardsData = ['Карточка 1', 'Карточка 2', 'Карточка 3', 'Карточка 4', 'Карточка 5'];
+    
+    // Переменные для логики жестов
+    let activeCard = null;
+    let startX = 0, startY = 0, currentX = 0, currentY = 0;
+    let isDragging = false;
+    const SWIPE_THRESHOLD = 100; // Расстояние в пикселях для срабатывания свайпа
+
+    // Инициализация колоды
+    function initDeck() {
+      // Создаем карточки в обратном порядке, чтобы первая была поверх остальных в DOM
+      cardsData.reverse().forEach(data => addCardToDOM(data));
+      updateCardsDepth();
+      bindEventsToTopCard();
+    }
+
+    function addCardToDOM(text) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.textContent = text;
+      deckContainer.appendChild(card);
+    }
+
+    // Создание эффекта глубины (слегка уменьшаем те, что сзади)
+    function updateCardsDepth() {
+      const cards = deckContainer.querySelectorAll('.card');
+      cards.forEach((card, index) => {
+        // cards.length - 1 - это верхняя карточка
+        const isTop = index === cards.length - 1;
+        card.style.transform = isTop ? 'scale(1) translateY(0)' : `scale(0.95) translateY(10px)`;
+        card.style.opacity = isTop ? '1' : '0.8';
+        card.style.pointerEvents = isTop ? 'auto' : 'none';
+      });
+    }
+
+    // Привязываем события только к самой верхней карточке
+    function bindEventsToTopCard() {
+      const cards = deckContainer.querySelectorAll('.card');
+      if (cards.length === 0) return;
+      
+      activeCard = cards[cards.length - 1];
+      
+      activeCard.addEventListener('pointerdown', handlePointerDown);
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener('pointercancel', handlePointerUp);
+    }
+
+    function unbindEvents() {
+      if (activeCard) {
+        activeCard.removeEventListener('pointerdown', handlePointerDown);
+      }
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    }
+
+    function handlePointerDown(e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return; // Только левая кнопка мыши
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      activeCard.classList.add('dragging');
+      activeCard.setPointerCapture(e.pointerId);
+    }
+
+    function handlePointerMove(e) {
+      if (!isDragging || !activeCard) return;
+      
+      currentX = e.clientX - startX;
+      currentY = e.clientY - startY;
+      
+      // Вычисляем угол поворота для эффекта (макс 15 градусов)
+      const rotate = currentX * 0.05; 
+      activeCard.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg)`;
+    }
+
+    function handlePointerUp() {
+      if (!isDragging || !activeCard) return;
+      isDragging = false;
+      activeCard.classList.remove('dragging');
+
+      if (currentX > SWIPE_THRESHOLD) {
+        swipe('right');
+      } else if (currentX < -SWIPE_THRESHOLD) {
+        swipe('left');
+      } else {
+        // Возврат в центр, если свайп слишком короткий
+        activeCard.style.transform = 'translate(0px, 0px) rotate(0deg)';
+      }
+      currentX = 0; currentY = 0;
+    }
+
+    // Логика свайпа (срабатывает от жеста и от кнопок)
+    function swipe(direction) {
+      unbindEvents();
+      const cardToAnimate = activeCard;
+      
+      // Анимация вылета за экран
+      const multiplier = direction === 'right' ? 1 : -1;
+      const flyX = multiplier * (window.innerWidth + 200);
+      cardToAnimate.style.transform = `translate(${flyX}px, ${currentY}px) rotate(${multiplier * 30}deg)`;
+      cardToAnimate.style.opacity = '0';
+
+      setTimeout(() => {
+        if (direction === 'left') {
+          // Удаляем карточку
+          cardToAnimate.remove();
+        } else if (direction === 'right') {
+          // Возвращаем в колоду (в самое начало DOM)
+          cardToAnimate.style.transition = 'none';
+          cardToAnimate.style.transform = 'scale(0.95) translateY(10px)';
+          cardToAnimate.style.opacity = '0';
+          deckContainer.prepend(cardToAnimate);
+          
+          // Даем браузеру кадр для применения стилей без анимации, затем возвращаем transition
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              cardToAnimate.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+            });
+          });
+        }
+        
+        updateCardsDepth();
+        bindEventsToTopCard();
+      }, 300); // Время должно совпадать с CSS transition
+    }
+
+    // Обработчики кнопок
+    btnLeft.addEventListener('click', () => {
+      if(activeCard && !isDragging) swipe('left');
+    });
+
+    btnRight.addEventListener('click', () => {
+      if(activeCard && !isDragging) swipe('right');
+    });
+
+    // Запуск
+    initDeck();
+  </script>
+</body>
+</html>

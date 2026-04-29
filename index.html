@@ -1,445 +1,296 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Flashcards App Pro</title>
-  <style>
-    :root {
-      --bg-color: #181818;
-      --card-bg: #222222;
-      --text-main: #E0E0E0;
-      --text-muted: #888888;
-      --accent-soft: #333333;
-      --accent-blue: #4A90E2;
-      --border-color: #3d3d3d;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reword Mini</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --card-bg: #1c1f26;
+            --text-main: #e2e8f0;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --border: rgba(255, 255, 255, 0.1);
+        }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, system-ui, sans-serif; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            margin: 0; background: var(--bg); color: var(--text-main); 
+            font-family: -apple-system, system-ui, sans-serif;
+            overflow: hidden; height: 100vh;
+        }
 
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+        /* Views Control */
+        .view { display: none; height: 100vh; flex-direction: column; }
+        .view.active { display: flex; }
 
-    .view { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
-    .view.active { display: flex; }
-    #view-loading { justify-content: center; }
+        /* Header */
+        .header { 
+            padding: 20px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .header h1 { font-size: 1.2rem; margin: 0; }
+        .back-btn { background: none; border: none; color: var(--accent); font-size: 1.5rem; cursor: pointer; }
 
-    .loader {
-      width: 30px; height: 30px;
-      border: 2px solid var(--border-color);
-      border-top-color: var(--text-main);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+        /* Topics List */
+        .topics-grid { padding: 15px; overflow-y: auto; display: grid; gap: 12px; }
+        .topic-card { 
+            background: var(--card-bg); padding: 20px; border-radius: 16px;
+            border: 1px solid var(--border); cursor: pointer;
+        }
 
-    #view-topics { padding-top: 40px; }
-    #topics-container { width: 90vw; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
-    .topic-item {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      padding: 20px; border-radius: 16px;
-      display: flex; justify-content: space-between; align-items: center;
-      cursor: pointer;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .topic-item:active { background: var(--accent-soft); }
-    .topic-count { color: var(--text-muted); font-size: 0.85rem; }
+        /* Card Stage */
+        #card-stage {
+            position: relative; flex: 1; margin: 20px 20px 40px;
+            perspective: 1000px;
+        }
 
-    #deck-header {
-      width: 90vw; max-width: 500px;
-      display: grid;
-      grid-template-columns: 40px 1fr 40px;
-      align-items: center;
-      padding: 20px 0;
-      z-index: 10;
-    }
-    #header-topic-title {
-      text-align: center; color: var(--text-muted);
-      font-size: 0.8rem; text-transform: lowercase;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    #deck-counter { text-align: right; font-size: 0.9rem; font-weight: 500; }
+        .card {
+            position: absolute; inset: 0;
+            background: var(--card-bg); border-radius: 28px;
+            border: 1px solid var(--border); padding: 30px;
+            display: flex; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            transform: translate(var(--x, 0), var(--y, 0)) rotate(var(--r, 0));
+            touch-action: none; user-select: none;
+        }
 
-    .icon-btn {
-      background: transparent; border: none; color: var(--text-main);
-      font-size: 1.4rem; cursor: pointer; display: flex; align-items: center;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
+        .card.animating { transition: transform 0.4s cubic-bezier(0.15, 0.3, 0.25, 1), opacity 0.4s; }
 
-    #deck-container {
-      position: relative;
-      width: 90vw; height: 80vh; max-width: 500px;
-    }
+        .card-active { z-index: 2; opacity: 1; }
+        .card-next { z-index: 1; transform: scale(0.94) translateY(15px); opacity: 0.4; }
 
-    /*
-      Transition всегда на карточке — это позволяет анимировать смену состояний.
-      Подавляем только там, где нужно (классы .card-no-anim, .card-dragging).
-    */
-    .card {
-      position: absolute; inset: 0;
-      background-color: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 24px;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
-    }
+        /* Card Content */
+        .card-main { font-size: 1.6rem; font-weight: 600; line-height: 1.3; margin-bottom: auto; }
+        .card-sub { font-size: 1.3rem; color: var(--accent); margin-top: 10px; display: none; }
+        
+        .eye-btn {
+            margin: auto; width: 70px; height: 70px; border-radius: 20px;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 28px; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
 
-    /* Состояния стека — управляются только через JS */
-    .card-back { transform: scale(0.96) translateY(10px); opacity: 0.4; }
-    .card-top  { transform: scale(1) translateY(0);       opacity: 1;   touch-action: none; }
-
-    /* Подавляем transition: перед DOM-манипуляциями, снимаем сразу после reflow */
-    .card-no-anim { transition: none !important; }
-
-    /* Во время перетаскивания */
-    .card-dragging { transition: none !important; will-change: transform; }
-
-    /* Вылет за экран — перекрывает всё */
-    .card-flying {
-      transition: transform 0.32s ease-out, opacity 0.25s ease-out !important;
-    }
-
-    .card-body {
-      flex: 1; padding: 32px 24px;
-      display: flex; flex-direction: column; align-items: flex-start;
-      user-select: none;
-    }
-    .card-main-row { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; }
-    .card-text-primary { font-size: 1.7rem; font-weight: 400; line-height: 1.2; text-align: left; flex: 1; }
-
-    .play-btn {
-      background: transparent; border: none; color: var(--accent-blue);
-      font-size: 1.6rem; margin-left: 15px; cursor: pointer;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    }
-    .card-text-secondary {
-      font-size: 1.15rem; color: var(--text-muted);
-      margin-top: 16px; text-align: left; display: none; width: 100%;
-    }
-    .card-eye-zone {
-      flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
-    }
-    .reveal-btn {
-      width: 156px; height: 156px;
-      background: transparent; border: 1px solid var(--border-color); border-radius: 14px;
-      color: var(--text-muted); font-size: 3rem; cursor: pointer;
-      display: flex; justify-content: center; align-items: center;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    }
-    .card-actions {
-      display: flex; gap: 1px;
-      background-color: var(--border-color);
-      height: 70px; border-top: 1px solid var(--border-color);
-    }
-    .action-btn {
-      flex: 1; background-color: var(--card-bg); border: none; color: var(--text-muted);
-      font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
-      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
-    }
-    .action-btn:active { background-color: var(--accent-soft); }
-  </style>
+        /* Loader */
+        .loader-container { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .loader { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
 
-  <div id="view-loading" class="view active"><div class="loader"></div></div>
-
-  <div id="view-topics" class="view">
-    <div id="topics-container"></div>
-  </div>
-
-  <div id="view-deck" class="view">
-    <div id="deck-header">
-      <button class="icon-btn" id="btn-back">←</button>
-      <div id="header-topic-title">topic_name</div>
-      <div id="deck-counter">0</div>
-    </div>
-    <div id="deck-container"></div>
-  </div>
-
-  <script>
-    /* --- 1. КОНФИГ ИЗ URL --- */
-    const urlParams = new URLSearchParams(window.location.search);
-    const CONFIG = {
-      apiKey: urlParams.get('key'),
-      spreadsheetId: urlParams.get('id')
-    };
-
-    /* --- 2. API --- */
-    const api = {
-      async fetchData() {
-        if (!CONFIG.apiKey || !CONFIG.spreadsheetId) {
-          document.getElementById('view-loading').innerHTML = `
-            <div style="padding: 20px; text-align: center; color: #ff6b6b;">
-              <h3>Конфигурация не найдена</h3>
-              <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
-                Пожалуйста, добавьте параметры в URL:<br>?key=ВАШ_КЛЮЧ&id=ID_ТАБЛИЦЫ
-              </p>
-            </div>`;
-          return null;
-        }
-        try {
-          const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
-          const metaData = await (await fetch(metaUrl)).json();
-          if (metaData.error) throw new Error(metaData.error.message);
-
-          const sheetNames = metaData.sheets.map(s => s.properties.title);
-          const ranges = sheetNames.map(n => `${n}!A1:B1000`).join('&ranges=');
-          const dataJSON = await (await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`
-          )).json();
-
-          const result = {};
-          dataJSON.valueRanges.forEach((range, i) => {
-            const name = sheetNames[i];
-            const cards = (range.values || [])
-              .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
-              .map(row => ({ text1: row[0], text2: row[1] || "" }));
-            if (cards.length > 0) result[name] = { name, cards };
-          });
-          return result;
-        } catch (e) {
-          console.error("API Error:", e);
-          alert("Ошибка доступа к Google Sheets: " + e.message);
-          return null;
-        }
-      }
-    };
-
-    /* --- 3. СОСТОЯНИЕ --- */
-    let appData = {};
-    let activeCard = null;
-    const drag = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
-    const THRESHOLD = window.innerWidth * 0.25;
-
-    /* --- 4. НАВИГАЦИЯ --- */
-    function showView(name) {
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.getElementById('view-' + name).classList.add('active');
-    }
-
-    /* --- 5. ТОПИКИ --- */
-    function renderTopics(data) {
-      const container = document.getElementById('topics-container');
-      container.innerHTML = '';
-      Object.keys(data).forEach(id => {
-        const item = document.createElement('div');
-        item.className = 'topic-item';
-        item.innerHTML = `<span>${data[id].name}</span><span class="topic-count">${data[id].cards.length}</span>`;
-        item.onclick = () => startDeck(data[id]);
-        container.appendChild(item);
-      });
-    }
-
-    /* --- 6. СТЕКИНГ ---
-      Принцип: перед любой DOM-манипуляцией добавляем .card-no-anim,
-      делаем изменение, вызываем reflow (offsetHeight), убираем .card-no-anim.
-      Это гарантирует: браузер видит "было" и "стало" в разных кадрах
-      → transition срабатывает там, где нужен, и не срабатывает там, где не нужен.
-    */
-    function setStackClasses(cards, withTransition) {
-      if (!withTransition) {
-        // Без анимации: подавляем transition, меняем классы, reflow, снимаем
-        cards.forEach(card => card.classList.add('card-no-anim'));
-        void document.getElementById('deck-container').offsetHeight; // reflow
-        cards.forEach((card, i) => {
-          const isTop = i === cards.length - 1;
-          card.classList.toggle('card-top', isTop);
-          card.classList.toggle('card-back', !isTop);
-        });
-        void document.getElementById('deck-container').offsetHeight; // reflow
-        cards.forEach(card => card.classList.remove('card-no-anim'));
-      } else {
-        // С анимацией: просто меняем классы, transition сработает сам
-        cards.forEach((card, i) => {
-          const isTop = i === cards.length - 1;
-          card.classList.toggle('card-top', isTop);
-          card.classList.toggle('card-back', !isTop);
-        });
-      }
-    }
-
-    /* --- 7. КОЛОДА --- */
-    function startDeck(topic) {
-      document.getElementById('header-topic-title').textContent = topic.name;
-      document.getElementById('deck-counter').textContent = topic.cards.length;
-
-      const container = document.getElementById('deck-container');
-      container.innerHTML = '';
-      [...topic.cards].reverse().forEach(c => container.appendChild(createCard(c)));
-
-      // Расставляем без анимации при первом показе
-      const cards = [...container.querySelectorAll('.card')];
-      setStackClasses(cards, false);
-
-      showView('deck');
-      bindTopCard();
-    }
-
-    function createCard(data) {
-      const el = document.createElement('div');
-      el.className = 'card';
-      el.innerHTML = `
-        <div class="card-body">
-          <div class="card-main-row">
-            <div class="card-text-primary">${data.text1}</div>
-            <button class="play-btn">▶</button>
-          </div>
-          <div class="card-text-secondary">${data.text2}</div>
-          <div class="card-eye-zone">
-            <button class="reveal-btn">👁</button>
-          </div>
+    <div id="view-loading" class="view active">
+        <div class="loader-container">
+            <div class="loader"></div>
+            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Loading spreadsheet...</p>
         </div>
-        <div class="card-actions">
-          <button class="action-btn" data-action="left">Удалить</button>
-          <button class="action-btn" data-action="right">В конец</button>
-        </div>`;
+    </div>
 
-      const eye = el.querySelector('.reveal-btn');
-      const secText = el.querySelector('.card-text-secondary');
+    <div id="view-topics" class="view">
+        <div class="header"><h1>Мои карточки</h1></div>
+        <div id="topics-grid" class="topics-grid"></div>
+    </div>
 
-      eye.onclick = () => {
-        eye.closest('.card-eye-zone').style.display = 'none';
-        secText.style.display = 'block';
-      };
-      el.querySelector('.play-btn').onclick = () => console.log("Play:", data.text1);
-      el.querySelectorAll('[data-action]').forEach(btn => {
-        btn.onclick = () => triggerSwipe(btn.dataset.action);
-      });
+    <div id="view-deck" class="view">
+        <div class="header">
+            <button class="back-btn" onclick="showView('topics')">✕</button>
+            <h1 id="deck-title">Deck</h1>
+            <span id="deck-counter" style="color: var(--text-muted)">0</span>
+        </div>
+        <div id="card-stage"></div>
+    </div>
 
-      return el;
-    }
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const CONFIG = {
+            apiKey: params.get('key'),
+            sheetId: params.get('id')
+        };
 
-    /* --- 8. ЖЕСТЫ --- */
-    function bindTopCard() {
-      const cards = document.querySelectorAll('#deck-container .card');
-      if (!cards.length) return;
-      activeCard = cards[cards.length - 1];
-      activeCard.onpointerdown = onDragStart;
-    }
+        let appData = {};
+        let currentSession = [];
 
-    function onDragStart(e) {
-      if (e.target.closest('button')) return; // кнопки обрабатывают себя сами
+        // --- API LAYER ---
+        const api = {
+            async fetchData() {
+                if (!CONFIG.apiKey || !CONFIG.sheetId) throw new Error("Missing URL parameters (key/id)");
 
-      drag.active = true;
-      drag.startX = e.clientX; drag.startY = e.clientY;
-      drag.dx = 0; drag.dy = 0;
+                // 1. Получаем список листов
+                const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}?key=${CONFIG.apiKey}`);
+                const meta = await metaRes.json();
+                if (meta.error) throw new Error(meta.error.message);
 
-      activeCard.classList.add('card-dragging');
-      activeCard.classList.remove('card-top'); // убираем touch-action: none → handled by card-top
+                const sheetNames = meta.sheets.map(s => s.properties.title);
+                
+                // 2. Получаем данные всех листов сразу
+                const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
+                const dataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`);
+                const dataJSON = await dataRes.json();
 
-      document.addEventListener('pointermove', onDragMove, { passive: true });
-      document.addEventListener('pointerup',    onDragEnd);
-      document.addEventListener('pointercancel', onDragCancel);
-    }
+                const result = {};
+                dataJSON.valueRanges.forEach((range, idx) => {
+                    const name = sheetNames[idx];
+                    const rows = range.values || [];
+                    const cards = rows
+                        .filter(row => row[0] && row[0] !== "text1")
+                        .map(row => ({ text1: row[0], text2: row[1] || "" }));
+                    
+                    if (cards.length > 0) result[name] = cards;
+                });
+                return result;
+            }
+        };
 
-    function onDragMove(e) {
-      if (!drag.active) return;
-      drag.dx = e.clientX - drag.startX;
-      drag.dy = e.clientY - drag.startY;
-      activeCard.style.transform = `translate(${drag.dx}px, ${drag.dy}px) rotate(${drag.dx * 0.05}deg)`;
-    }
+        // --- ENGINE ---
+        const Engine = {
+            THRESHOLD: 120,
 
-    function onDragEnd() {
-      if (!drag.active) return;
-      cleanupDragListeners();
-      drag.active = false;
-      activeCard.classList.remove('card-dragging');
+            initDeck(name) {
+                currentSession = [...appData[name]];
+                document.getElementById('deck-title').textContent = name;
+                document.getElementById('card-stage').innerHTML = '';
+                this.updateCounter();
+                this.spawn();
+                showView('deck');
+            },
 
-      if (Math.abs(drag.dx) > THRESHOLD) {
-        triggerSwipe(drag.dx > 0 ? 'right' : 'left');
-      } else {
-        // Возврат: восстанавливаем card-top (transition включён, карточка плавно встаёт)
-        activeCard.style.transform = '';
-        activeCard.classList.add('card-top');
-      }
-    }
+            spawn() {
+                const stage = document.getElementById('card-stage');
+                // Поддерживаем 2 карты в DOM
+                while (stage.children.length < 2 && currentSession.length > 0) {
+                    const data = currentSession.shift();
+                    const cardEl = this.createCardEl(data);
+                    stage.prepend(cardEl); // Новая карта всегда снизу
+                }
 
-    function onDragCancel() {
-      if (!drag.active) return;
-      cleanupDragListeners();
-      drag.active = false;
-      activeCard.classList.remove('card-dragging');
-      activeCard.style.transform = '';
-      activeCard.classList.add('card-top');
-    }
+                // Активируем верхнюю карту
+                const top = stage.lastElementChild;
+                if (top && !top.classList.contains('card-active')) {
+                    top.className = 'card card-active animating';
+                    this.bindEvents(top, top.dataset); 
+                }
 
-    function cleanupDragListeners() {
-      document.removeEventListener('pointermove', onDragMove);
-      document.removeEventListener('pointerup',    onDragEnd);
-      document.removeEventListener('pointercancel', onDragCancel);
-    }
+                // Стилизуем нижнюю
+                const next = stage.firstElementChild;
+                if (next && next !== top) {
+                    next.className = 'card card-next animating';
+                }
+            },
 
-    /* --- 9. СВАЙП --- */
-    function triggerSwipe(dir) {
-      if (!activeCard) return;
+            createCardEl(data) {
+                const div = document.createElement('div');
+                div.className = 'card card-next';
+                // Сохраняем данные прямо в DOM-узле для простоты
+                div.dataset.t1 = data.text1;
+                div.dataset.t2 = data.text2;
+                
+                div.innerHTML = `
+                    <div class="card-main">${data.text1}</div>
+                    <div class="card-sub">${data.text2}</div>
+                    <div class="eye-btn">👁</div>
+                `;
 
-      const target = activeCard;
-      activeCard = null;
+                const btn = div.querySelector('.eye-btn');
+                const sub = div.querySelector('.card-sub');
+                
+                btn.onpointerdown = (e) => e.stopPropagation();
+                btn.onclick = () => {
+                    btn.style.display = 'none';
+                    sub.style.display = 'block';
+                };
 
-      const flyX = (dir === 'right' ? 1 : -1) * window.innerWidth * 1.5;
-      const rot  = dir === 'right' ? 25 : -25;
+                return div;
+            },
 
-      // Запускаем анимацию вылета
-      target.classList.remove('card-dragging', 'card-top', 'card-back');
-      target.classList.add('card-flying');
-      target.style.transform = `translate(${flyX}px, ${drag.dy}px) rotate(${rot}deg)`;
-      target.style.opacity = '0';
+            bindEvents(el, data) {
+                let start = { x: 0, y: 0 };
+                let current = { x: 0, y: 0 };
 
-      if (dir === 'left') {
-        const counterEl = document.getElementById('deck-counter');
-        counterEl.textContent = parseInt(counterEl.textContent) - 1;
-      }
+                const move = (e) => {
+                    current.x = e.clientX - start.x;
+                    current.y = e.clientY - start.y;
+                    el.style.setProperty('--x', `${current.x}px`);
+                    el.style.setProperty('--y', `${current.y}px`);
+                    el.style.setProperty('--r', `${current.x * 0.05}deg`);
+                };
 
-      setTimeout(() => {
-        const container = document.getElementById('deck-container');
+                const up = () => {
+                    document.removeEventListener('pointermove', move);
+                    document.removeEventListener('pointerup', up);
+                    el.classList.add('animating');
 
-        if (dir === 'left') {
-          target.remove();
-        } else {
-          // Сбрасываем карточку БЕЗ анимации: card-no-anim + reflow
-          target.classList.remove('card-flying');
-          target.classList.add('card-no-anim');
-          target.style.transform = '';
-          target.style.opacity  = '';
+                    if (Math.abs(current.x) > this.THRESHOLD) {
+                        this.swipe(el, current.x > 0 ? 'right' : 'left', data);
+                    } else {
+                        el.style.setProperty('--x', `0px`);
+                        el.style.setProperty('--y', `0px`);
+                        el.style.setProperty('--r', `0deg`);
+                    }
+                };
 
-          // Сбрасываем раскрытое состояние (eye/secondary)
-          const eyeZone = target.querySelector('.card-eye-zone');
-          const secText = target.querySelector('.card-text-secondary');
-          eyeZone.style.display = 'flex';   // явно, как в оригинале
-          secText.style.display = 'none';   // явно, как в оригинале
+                el.onpointerdown = (e) => {
+                    start = { x: e.clientX, y: e.clientY };
+                    current = { x: 0, y: 0 };
+                    el.classList.remove('animating');
+                    document.addEventListener('pointermove', move);
+                    document.addEventListener('pointerup', up);
+                };
+            },
 
-          container.prepend(target);
+            swipe(el, dir, data) {
+                const outX = dir === 'right' ? 1000 : -1000;
+                el.style.setProperty('--x', `${outX}px`);
+                el.style.opacity = '0';
 
-          // Reflow: браузер фиксирует позицию до снятия card-no-anim
-          void container.offsetHeight;
-          target.classList.remove('card-no-anim');
-          // Теперь card-back будет применён с transition ниже
+                // Если вправо — возвращаем в конец очереди
+                if (dir === 'right') {
+                    currentSession.push({ text1: data.t1, text2: data.t2 });
+                }
+
+                setTimeout(() => {
+                    el.remove();
+                    this.updateCounter();
+                    this.spawn();
+                }, 400);
+            },
+
+            updateCounter() {
+                const total = currentSession.length + document.getElementById('card-stage').children.length;
+                document.getElementById('deck-counter').textContent = total;
+                if (total === 0) showView('topics');
+            }
+        };
+
+        // --- UI CONTROL ---
+        function showView(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${id}`).classList.add('active');
         }
 
-        // Обновляем стек С анимацией для новой верхней карточки
-        const cards = [...container.querySelectorAll('.card')];
-        setStackClasses(cards, true);
-        bindTopCard();
-      }, 340);
-    }
+        function renderTopics() {
+            const grid = document.getElementById('topics-grid');
+            grid.innerHTML = '';
+            Object.keys(appData).forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'topic-card';
+                div.innerHTML = `<strong>${name}</strong><div style="color:var(--text-muted); font-size:0.8rem; margin-top:5px">${appData[name].length} cards</div>`;
+                div.onclick = () => Engine.initDeck(name);
+                grid.appendChild(div);
+            });
+        }
 
-    /* --- 10. СТАРТ --- */
-    document.getElementById('btn-back').onclick = () => showView('topics');
-
-    api.fetchData().then(data => {
-      if (data) { appData = data; renderTopics(data); showView('topics'); }
-    });
-  </script>
+        // --- STARTUP ---
+        window.onload = async () => {
+            try {
+                appData = await api.fetchData();
+                renderTopics();
+                showView('topics');
+            } catch (err) {
+                document.getElementById('loading-msg').innerHTML = `<span style="color:#ff6b6b">Error: ${err.message}</span>`;
+            }
+        };
+    </script>
 </body>
 </html>

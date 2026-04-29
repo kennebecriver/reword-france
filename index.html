@@ -174,27 +174,77 @@
   </div>
 
   <script>
-    /* 1. API СЛОЙ */
-    const api = {
-      fetchData: () => new Promise(resolve => {
-        setTimeout(() => resolve({
-          "france_verbs": {
-            name: "france_verbs",
-            cards: [
-              { text1: "Je regarde la télé.", text2: "Я смотрю телевизор.", res1: "", res2: "" },
-              { text1: "Tu parles français?", text2: "Ты говоришь по-французски?", res1: "", res2: "" }
-            ]
-          },
-          "it_terms": {
-            name: "it_terms",
-            cards: [
-              { text1: "Encryption", text2: "Шифрование", res1: "", res2: "" },
-              { text1: "Middleware", text2: "Промежуточное ПО", res1: "", res2: "" }
-            ]
-          }
-        }), 800);
-      })
-    };
+	/* --- 1. ДИНАМИЧЕСКИЙ КОНФИГ ИЗ URL --- */
+	const urlParams = new URLSearchParams(window.location.search);
+
+	const CONFIG = {
+	  apiKey: urlParams.get('key'),        // ищет параметр ?key=
+	  spreadsheetId: urlParams.get('id')   // ищет параметр ?id=
+	};
+
+	/* --- 2. ОБНОВЛЕННЫЙ API СЛОЙ --- */
+	const api = {
+	  async fetchData() {
+		// Проверка: если параметров нет, выводим инструкцию вместо бесконечной загрузки
+		if (!CONFIG.apiKey || !CONFIG.spreadsheetId) {
+		  document.getElementById('view-loading').innerHTML = `
+			<div style="padding: 20px; text-align: center; color: #ff6b6b;">
+			  <h3>Конфигурация не найдена</h3>
+			  <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
+				Пожалуйста, добавьте параметры в URL:<br>
+				?key=ВАШ_КЛЮЧ&id=ID_ТАБЛИЦЫ
+			  </p>
+			</div>
+		  `;
+		  return null;
+		}
+
+		try {
+		  // 1. Получаем список листов
+		  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
+		  const metaResponse = await fetch(metaUrl);
+		  const metaData = await metaResponse.json();
+		  
+		  if (metaData.error) {
+			throw new Error(metaData.error.message);
+		  }
+
+		  const sheetNames = metaData.sheets.map(s => s.properties.title);
+		  
+		  // 2. Запрашиваем данные (batchGet)
+		  const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
+		  const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`;
+		  const dataResponse = await fetch(dataUrl);
+		  const dataJSON = await dataResponse.json();
+
+		  const formattedData = {};
+
+		  dataJSON.valueRanges.forEach((range, index) => {
+			const name = sheetNames[index];
+			const rows = range.values || [];
+			
+			// Парсим строки (без удаления первой строки, чтобы не терять данные)
+			const cards = rows
+			  .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
+			  .map(row => ({
+				text1: row[0],
+				text2: row[1] || "",
+				res1: "", res2: ""
+			  }));
+
+			if (cards.length > 0) {
+			  formattedData[name] = { name, cards };
+			}
+		  });
+
+		  return formattedData;
+		} catch (e) {
+		  console.error("API Error:", e);
+		  alert("Ошибка доступа к Google Sheets: " + e.message);
+		  return null;
+		}
+	  }
+	};
 
     /* 2. СОСТОЯНИЕ */
     let appData = {};

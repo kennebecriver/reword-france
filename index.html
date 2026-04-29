@@ -16,7 +16,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, system-ui, sans-serif; }
-    
+
     body {
       background-color: var(--bg-color);
       color: var(--text-main);
@@ -24,15 +24,18 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      touch-action: none;
+      /*
+        FIX #1: убрали touch-action: none с body.
+        Это блокировало ВСЕ нативные жесты и вызывало конфликты
+        с pointer events на iOS/Android. Управление touch-action
+        теперь точечное — только на карточке.
+      */
     }
 
-    /* --- СИСТЕМА ЭКРАНОВ --- */
     .view { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
     .view.active { display: flex; }
     #view-loading { justify-content: center; }
 
-    /* --- ЭКРАН ЗАГРУЗКИ --- */
     .loader {
       width: 30px; height: 30px;
       border: 2px solid var(--border-color);
@@ -42,7 +45,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* --- ЭКРАН ТОПИКОВ --- */
     #view-topics { padding-top: 40px; }
     #topics-container { width: 90vw; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
     .topic-item {
@@ -51,23 +53,25 @@
       padding: 20px; border-radius: 16px;
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer;
+      /* FIX #2: touch-action: manipulation убирает 300ms задержку клика на мобильном */
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .topic-item:active { background: var(--accent-soft); }
     .topic-count { color: var(--text-muted); font-size: 0.85rem; }
 
-    /* --- ЭКРАН КОЛОДЫ: ШАПКА --- */
     #deck-header {
       width: 90vw; max-width: 500px;
       display: grid;
-      grid-template-columns: 40px 1fr 40px; /* Сетка для идеального центрирования */
+      grid-template-columns: 40px 1fr 40px;
       align-items: center;
       padding: 20px 0;
       z-index: 10;
     }
-    #header-topic-title { 
-      text-align: center; 
-      color: var(--text-muted); 
-      font-size: 0.8rem; 
+    #header-topic-title {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
       text-transform: lowercase;
       white-space: nowrap;
       overflow: hidden;
@@ -78,18 +82,31 @@
     .icon-btn {
       background: transparent; border: none; color: var(--text-main);
       font-size: 1.4rem; cursor: pointer; display: flex; align-items: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* --- КОНТЕЙНЕР КОЛОДЫ --- */
     #deck-container {
       position: relative;
       width: 90vw;
       height: 80vh;
       max-width: 500px;
-      perspective: 1000px;
+      /*
+        FIX #3: убрали perspective: 1000px.
+        Он создавал 3D-контекст рендеринга без нужды (свайп 2D),
+        заставляя GPU выделять дополнительные ресурсы под все дочерние слои.
+      */
     }
 
-    /* --- КАРТОЧКА --- */
+    /*
+      FIX #4: КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ.
+      Удалено правило .card:not(:last-child) { transform: scale(0.96)... }.
+      Это правило пересчитывается при ЛЮБОМ изменении DOM-порядка,
+      и так как transition задан на .card, браузер запускает анимацию
+      ОДНОВРЕМЕННО на всех карточках — отсюда и "размазывание".
+      Теперь стекинг управляется JS через классы .card-back / .card-top.
+    */
+
     .card {
       position: absolute;
       inset: 0;
@@ -99,27 +116,59 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      will-change: transform, opacity;
-      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
       box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+      /*
+        FIX #5: убрали will-change отсюда.
+        will-change на ВСЕХ карточках сразу создаёт отдельный compositing layer
+        для каждой — это перегружает GPU на мобильных устройствах.
+        will-change теперь добавляется только к той карточке, что реально двигается.
+      */
     }
-    .card.dragging { transition: none; }
-    .card:not(:last-child) { transform: scale(0.96) translateY(10px); opacity: 0.4; }
 
-    /* Контент карточки (Левое выравнивание) */
+    /* Фоновые карточки: без transition здесь — transition добавляется классом .animated */
+    .card-back {
+      transform: scale(0.96) translateY(10px);
+      opacity: 0.4;
+    }
+
+    /* Верхняя карточка: явно сброшена в identity */
+    .card-top {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      touch-action: none; /* none только на активной карточке для перехвата свайпов */
+    }
+
+    /* Класс для плавного перехода — добавляется только когда нужна анимация */
+    .card-animated {
+      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
+    }
+
+    /* Во время перетаскивания: никаких transition, добавляем will-change только сейчас */
+    .card-dragging {
+      transition: none !important;
+      will-change: transform;
+    }
+
+    /* Анимация вылета за экран */
+    .card-flying {
+      transition: transform 0.3s ease-out, opacity 0.25s ease-out !important;
+    }
+
     .card-body {
       flex: 1; padding: 32px 24px;
       display: flex; flex-direction: column;
-      align-items: flex-start; /* Все по левому краю */
+      align-items: flex-start;
       user-select: none;
     }
-    
+
     .card-main-row { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; }
     .card-text-primary { font-size: 1.7rem; font-weight: 400; line-height: 1.2; text-align: left; flex: 1; }
-    
+
     .play-btn {
       background: transparent; border: none; color: var(--accent-blue);
       font-size: 1.6rem; margin-left: 15px; cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .card-text-secondary {
@@ -128,22 +177,23 @@
       display: none; width: 100%;
     }
 
-    /* Зона глаза */
     .card-eye-zone {
-      flex: 1;           /* Занимает всё оставшееся пространство карточки */
-      width: 100%; 
-      display: flex; 
-      justify-content: center; 
-      align-items: center; /* Центровка по вертикали и горизонтали */
+      flex: 1;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
+
     .reveal-btn {
       width: 156px; height: 156px;
       background: transparent; border: 1px solid var(--border-color); border-radius: 14px;
       color: var(--text-muted); font-size: 3rem; cursor: pointer;
       display: flex; justify-content: center; align-items: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Кнопки действий */
     .card-actions {
       display: flex; gap: 1px;
       background-color: var(--border-color);
@@ -152,6 +202,8 @@
     .action-btn {
       flex: 1; background-color: var(--card-bg); border: none; color: var(--text-muted);
       font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .action-btn:active { background-color: var(--accent-soft); }
   </style>
@@ -174,92 +226,78 @@
   </div>
 
   <script>
-	/* --- 1. ДИНАМИЧЕСКИЙ КОНФИГ ИЗ URL --- */
-	const urlParams = new URLSearchParams(window.location.search);
+    /* --- 1. КОНФИГ ИЗ URL --- */
+    const urlParams = new URLSearchParams(window.location.search);
+    const CONFIG = {
+      apiKey: urlParams.get('key'),
+      spreadsheetId: urlParams.get('id')
+    };
 
-	const CONFIG = {
-	  apiKey: urlParams.get('key'),        // ищет параметр ?key=
-	  spreadsheetId: urlParams.get('id')   // ищет параметр ?id=
-	};
+    /* --- 2. API СЛОЙ --- */
+    const api = {
+      async fetchData() {
+        if (!CONFIG.apiKey || !CONFIG.spreadsheetId) {
+          document.getElementById('view-loading').innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #ff6b6b;">
+              <h3>Конфигурация не найдена</h3>
+              <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
+                Пожалуйста, добавьте параметры в URL:<br>
+                ?key=ВАШ_КЛЮЧ&id=ID_ТАБЛИЦЫ
+              </p>
+            </div>
+          `;
+          return null;
+        }
+        try {
+          const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
+          const metaResponse = await fetch(metaUrl);
+          const metaData = await metaResponse.json();
+          if (metaData.error) throw new Error(metaData.error.message);
 
-	/* --- 2. ОБНОВЛЕННЫЙ API СЛОЙ --- */
-	const api = {
-	  async fetchData() {
-		// Проверка: если параметров нет, выводим инструкцию вместо бесконечной загрузки
-		if (!CONFIG.apiKey || !CONFIG.spreadsheetId) {
-		  document.getElementById('view-loading').innerHTML = `
-			<div style="padding: 20px; text-align: center; color: #ff6b6b;">
-			  <h3>Конфигурация не найдена</h3>
-			  <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
-				Пожалуйста, добавьте параметры в URL:<br>
-				?key=ВАШ_КЛЮЧ&id=ID_ТАБЛИЦЫ
-			  </p>
-			</div>
-		  `;
-		  return null;
-		}
+          const sheetNames = metaData.sheets.map(s => s.properties.title);
+          const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
+          const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`;
+          const dataResponse = await fetch(dataUrl);
+          const dataJSON = await dataResponse.json();
 
-		try {
-		  // 1. Получаем список листов
-		  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
-		  const metaResponse = await fetch(metaUrl);
-		  const metaData = await metaResponse.json();
-		  
-		  if (metaData.error) {
-			throw new Error(metaData.error.message);
-		  }
+          const formattedData = {};
+          dataJSON.valueRanges.forEach((range, index) => {
+            const name = sheetNames[index];
+            const rows = range.values || [];
+            const cards = rows
+              .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
+              .map(row => ({ text1: row[0], text2: row[1] || "" }));
+            if (cards.length > 0) formattedData[name] = { name, cards };
+          });
+          return formattedData;
+        } catch (e) {
+          console.error("API Error:", e);
+          alert("Ошибка доступа к Google Sheets: " + e.message);
+          return null;
+        }
+      }
+    };
 
-		  const sheetNames = metaData.sheets.map(s => s.properties.title);
-		  
-		  // 2. Запрашиваем данные (batchGet)
-		  const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
-		  const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`;
-		  const dataResponse = await fetch(dataUrl);
-		  const dataJSON = await dataResponse.json();
-
-		  const formattedData = {};
-
-		  dataJSON.valueRanges.forEach((range, index) => {
-			const name = sheetNames[index];
-			const rows = range.values || [];
-			
-			// Парсим строки (без удаления первой строки, чтобы не терять данные)
-			const cards = rows
-			  .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
-			  .map(row => ({
-				text1: row[0],
-				text2: row[1] || "",
-				res1: "", res2: ""
-			  }));
-
-			if (cards.length > 0) {
-			  formattedData[name] = { name, cards };
-			}
-		  });
-
-		  return formattedData;
-		} catch (e) {
-		  console.error("API Error:", e);
-		  alert("Ошибка доступа к Google Sheets: " + e.message);
-		  return null;
-		}
-	  }
-	};
-
-    /* 2. СОСТОЯНИЕ */
+    /* --- 3. СОСТОЯНИЕ --- */
     let appData = {};
     let currentTopic = null;
     let activeCard = null;
-    let dragData = { isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+
+    const drag = {
+      active: false,
+      startX: 0, startY: 0,
+      dx: 0, dy: 0
+    };
+
     const THRESHOLD = window.innerWidth * 0.25;
 
-    /* 3. НАВИГАЦИЯ */
+    /* --- 4. НАВИГАЦИЯ --- */
     function showView(name) {
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       document.getElementById('view-' + name).classList.add('active');
     }
 
-    /* 4. ОТРИСОВКА ТОПИКОВ */
+    /* --- 5. ТОПИКИ --- */
     function renderTopics(data) {
       const container = document.getElementById('topics-container');
       container.innerHTML = '';
@@ -272,17 +310,46 @@
       });
     }
 
-    /* 5. ЛОГИКА КОЛОДЫ */
+    /* --- 6. КОЛОДА --- */
     function startDeck(topic) {
       currentTopic = topic;
       document.getElementById('header-topic-title').textContent = topic.name;
       document.getElementById('deck-counter').textContent = topic.cards.length;
+
       const container = document.getElementById('deck-container');
       container.innerHTML = '';
-      
+
+      // Добавляем в обратном порядке (последняя в DOM = верхняя визуально)
       [...topic.cards].reverse().forEach(c => container.appendChild(createCard(c)));
       showView('deck');
+      updateStackClasses(false); // без анимации при первом показе
       bindTopCard();
+    }
+
+    /*
+      FIX #4 (продолжение): updateStackClasses управляет классами стекинга через JS.
+      Параметр animate=true добавляет .card-animated, чтобы transition
+      срабатывал ТОЛЬКО когда мы сами этого хотим, а не при любом DOM-изменении.
+    */
+    function updateStackClasses(animate) {
+      const cards = document.querySelectorAll('#deck-container .card');
+      cards.forEach((card, i) => {
+        const isTop = (i === cards.length - 1);
+
+        // Сначала убираем все анимационные классы, чтобы не накапливались
+        card.classList.remove('card-top', 'card-back', 'card-animated');
+
+        if (animate) {
+          // requestAnimationFrame гарантирует, что браузер применит
+          // удаление классов ДО добавления нового — иначе transition не сработает
+          requestAnimationFrame(() => {
+            card.classList.add(isTop ? 'card-top' : 'card-back');
+            card.classList.add('card-animated');
+          });
+        } else {
+          card.classList.add(isTop ? 'card-top' : 'card-back');
+        }
+      });
     }
 
     function createCard(data) {
@@ -300,94 +367,159 @@
           </div>
         </div>
         <div class="card-actions">
-          <button class="action-btn" data-swipe="left">Удалить</button>
-          <button class="action-btn" data-swipe="right">В конец</button>
+          <button class="action-btn" data-action="left">Удалить</button>
+          <button class="action-btn" data-action="right">В конец</button>
         </div>
       `;
 
-      // Атомарные события
       const eye = el.querySelector('.reveal-btn');
       const secText = el.querySelector('.card-text-secondary');
       const play = el.querySelector('.play-btn');
 
-      eye.onpointerdown = e => e.stopPropagation();
-      eye.onclick = () => { eye.parentElement.style.display = 'none'; secText.style.display = 'block'; };
-      
-      play.onpointerdown = e => e.stopPropagation();
+      eye.onclick = () => {
+        eye.closest('.card-eye-zone').style.display = 'none';
+        secText.style.display = 'block';
+      };
+
       play.onclick = () => console.log("Play:", data.text1);
 
-      el.querySelectorAll('.action-btn').forEach(b => {
-        b.onpointerdown = e => e.stopPropagation();
-        b.onclick = () => triggerSwipe(b.dataset.swipe);
+      el.querySelectorAll('[data-action]').forEach(btn => {
+        btn.onclick = () => triggerSwipe(btn.dataset.action);
       });
 
       return el;
     }
 
-    /* 6. ЖЕСТЫ */
+    /* --- 7. ЖЕСТЫ (FIX #6) --- */
+    /*
+      Убрали setPointerCapture — он на iOS/Android перехватывал события
+      у дочерних кнопок даже после stopPropagation и вызывал глитчи.
+      Теперь используем document-level listeners, которые добавляются
+      только на время активного перетаскивания и сразу удаляются.
+    */
     function bindTopCard() {
-      const cards = document.querySelectorAll('.card');
+      const cards = document.querySelectorAll('#deck-container .card');
       if (!cards.length) return;
+
       activeCard = cards[cards.length - 1];
-      activeCard.style.opacity = '1';
-      activeCard.style.transform = 'scale(1)';
-      activeCard.onpointerdown = e => {
-        dragData.isDragging = true;
-        dragData.startX = e.clientX; dragData.startY = e.clientY;
-        activeCard.classList.add('dragging');
-        activeCard.setPointerCapture(e.pointerId);
-        activeCard.onpointermove = moveEvent;
-        activeCard.onpointerup = endEvent;
-      };
+      // Убедимся, что у предыдущей карточки не остались висеть обработчики
+      activeCard.onpointerdown = onDragStart;
     }
 
-    function moveEvent(e) {
-      if (!dragData.isDragging) return;
-      dragData.currentX = e.clientX - dragData.startX;
-      dragData.currentY = e.clientY - dragData.startY;
-      activeCard.style.transform = `translate(${dragData.currentX}px, ${dragData.currentY}px) rotate(${dragData.currentX * 0.05}deg)`;
+    function onDragStart(e) {
+      // Игнорируем нажатия на кнопки внутри карточки
+      if (e.target.closest('button')) return;
+
+      drag.active = true;
+      drag.startX = e.clientX;
+      drag.startY = e.clientY;
+      drag.dx = 0;
+      drag.dy = 0;
+
+      activeCard.classList.remove('card-top', 'card-animated');
+      activeCard.classList.add('card-dragging');
+
+      // Listeners на document — надёжнее setPointerCapture на мобильных
+      document.addEventListener('pointermove', onDragMove, { passive: true });
+      document.addEventListener('pointerup', onDragEnd);
+      document.addEventListener('pointercancel', onDragCancel);
     }
 
-    function endEvent() {
-      dragData.isDragging = false;
-      activeCard.classList.remove('dragging');
-      if (Math.abs(dragData.currentX) > THRESHOLD) {
-        triggerSwipe(dragData.currentX > 0 ? 'right' : 'left');
+    function onDragMove(e) {
+      if (!drag.active) return;
+      drag.dx = e.clientX - drag.startX;
+      drag.dy = e.clientY - drag.startY;
+      activeCard.style.transform = `translate(${drag.dx}px, ${drag.dy}px) rotate(${drag.dx * 0.05}deg)`;
+    }
+
+    function onDragEnd() {
+      if (!drag.active) return;
+      removeDragListeners();
+      drag.active = false;
+
+      activeCard.classList.remove('card-dragging');
+
+      if (Math.abs(drag.dx) > THRESHOLD) {
+        triggerSwipe(drag.dx > 0 ? 'right' : 'left');
       } else {
+        // Возврат на место с анимацией
+        activeCard.classList.add('card-top', 'card-animated');
         activeCard.style.transform = '';
       }
-      dragData.currentX = 0; activeCard.onpointermove = null;
     }
 
+    function onDragCancel() {
+      if (!drag.active) return;
+      removeDragListeners();
+      drag.active = false;
+      activeCard.classList.remove('card-dragging');
+      activeCard.classList.add('card-top', 'card-animated');
+      activeCard.style.transform = '';
+    }
+
+    function removeDragListeners() {
+      document.removeEventListener('pointermove', onDragMove);
+      document.removeEventListener('pointerup', onDragEnd);
+      document.removeEventListener('pointercancel', onDragCancel);
+    }
+
+    /* --- 8. СВАЙП --- */
     function triggerSwipe(dir) {
       if (!activeCard) return;
-      const flyX = dir === 'right' ? window.innerWidth : -window.innerWidth;
-      activeCard.style.transform = `translate(${flyX}px, ${dragData.currentY}px) rotate(${dir === 'right' ? 20 : -20}deg)`;
-      activeCard.style.opacity = '0';
-      
+
+      const flyX = dir === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
+      const flyY = drag.dy;
+      const rot = dir === 'right' ? 25 : -25;
+
       const target = activeCard;
+      activeCard = null; // Предотвращаем повторный тригер
+
+      // Добавляем класс вылета (он перекрывает все transition через !important)
+      target.classList.remove('card-dragging');
+      target.classList.add('card-flying');
+      target.style.transform = `translate(${flyX}px, ${flyY}px) rotate(${rot}deg)`;
+      target.style.opacity = '0';
+
       if (dir === 'left') {
-        const count = parseInt(document.getElementById('deck-counter').textContent);
-        document.getElementById('deck-counter').textContent = count - 1;
+        const counterEl = document.getElementById('deck-counter');
+        counterEl.textContent = parseInt(counterEl.textContent) - 1;
       }
 
       setTimeout(() => {
-        if (dir === 'left') target.remove();
-        else {
-          target.style.transition = 'none';
+        if (dir === 'left') {
+          target.remove();
+        } else {
+          // Сброс состояния карточки для повторного использования
+          target.classList.remove('card-flying', 'card-top', 'card-back', 'card-animated');
           target.style.transform = '';
-          target.querySelector('.card-eye-zone').style.display = 'flex';
-          target.querySelector('.card-text-secondary').style.display = 'none';
+          target.style.opacity = '';
+
+          // Сбрасываем раскрытое состояние
+          const eyeZone = target.querySelector('.card-eye-zone');
+          const secText = target.querySelector('.card-text-secondary');
+          if (eyeZone) eyeZone.style.display = '';
+          if (secText) secText.style.display = '';
+
+          // Убираем transition перед prepend, чтобы не было прыжка
           document.getElementById('deck-container').prepend(target);
-          setTimeout(() => target.style.transition = '', 50);
         }
+
+        // Обновляем классы стекинга С анимацией для плавного появления
+        updateStackClasses(true);
         bindTopCard();
-      }, 300);
+      }, 320);
     }
 
-    /* 7. START */
+    /* --- 9. СТАРТ --- */
     document.getElementById('btn-back').onclick = () => showView('topics');
-    api.fetchData().then(data => { appData = data; renderTopics(data); showView('topics'); });
+
+    api.fetchData().then(data => {
+      if (data) {
+        appData = data;
+        renderTopics(data);
+        showView('topics');
+      }
+    });
   </script>
 </body>
 </html>

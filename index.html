@@ -11,6 +11,8 @@
             --text-main: #e2e8f0;
             --text-muted: #64748b;
             --accent: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
             --border-color: rgba(255, 255, 255, 0.1);
         }
 
@@ -22,32 +24,33 @@
             overflow: hidden; height: 100vh;
         }
 
-        /* Views Control */
         .view { display: none; height: 100vh; flex-direction: column; }
         .view.active { display: flex; }
 
-        /* Header */
+        /* --- HEADER --- */
         .header { 
             padding: 20px; display: flex; align-items: center; justify-content: space-between;
             border-bottom: 1px solid var(--border-color);
         }
-        .header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; }
-        .back-btn { background: none; border: none; color: var(--accent); font-size: 1.5rem; cursor: pointer; padding: 0 10px; }
+        .header h1 { font-size: 1.1rem; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .back-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; padding: 0 10px; }
+        #deck-counter { font-variant-numeric: tabular-nums; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 8px; font-size: 0.9rem; }
 
-        /* Topics List */
+        /* --- TOPICS --- */
         .topics-grid { padding: 15px; overflow-y: auto; display: grid; gap: 12px; }
         .topic-card { 
             background: var(--card-bg); padding: 20px; border-radius: 16px;
             border: 1px solid var(--border-color); cursor: pointer;
+            transition: transform 0.1s;
         }
+        .topic-card:active { transform: scale(0.98); }
 
-        /* Card Stage */
+        /* --- CARD STAGE --- */
         #card-stage {
-            position: relative; flex: 1; margin: 20px 20px 40px;
+            position: relative; flex: 1; margin: 20px 20px 10px;
             perspective: 1000px;
         }
 
-        /* --- ВОССТАНОВЛЕННЫЙ ДИЗАЙН КАРТОЧЕК --- */
         .card {
             position: absolute; inset: 0;
             background-color: var(--card-bg); border-radius: 24px;
@@ -56,42 +59,40 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             overflow: hidden;
             transform: translate(var(--x, 0), var(--y, 0)) rotate(var(--r, 0));
-            touch-action: none; user-select: none;
+            touch-action: none;
         }
 
         .card.animating { transition: transform 0.4s cubic-bezier(0.15, 0.3, 0.25, 1), opacity 0.4s; }
-
         .card-active { z-index: 2; opacity: 1; }
         .card-next { z-index: 1; transform: scale(0.96) translateY(10px); opacity: 0.4; }
 
-        .card-body { 
-            flex: 1; padding: 32px 24px; 
-            display: flex; flex-direction: column; 
-            align-items: flex-start; /* Текст всегда слева */
-        }
-
-        .card-text-primary {
-            font-size: 1.8rem; font-weight: 600; line-height: 1.3; margin-bottom: 15px;
-        }
-
-        .card-text-secondary {
-            font-size: 1.5rem; color: var(--accent); display: none; line-height: 1.3;
-        }
-
-        .card-eye-zone {
-            flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
-        }
-
+        .card-body { flex: 1; padding: 40px 24px; display: flex; flex-direction: column; align-items: flex-start; }
+        .card-text-primary { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 20px; }
+        .card-text-secondary { font-size: 1.6rem; color: var(--accent); display: none; line-height: 1.3; }
+        
+        .card-eye-zone { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; }
         .reveal-btn {
-            width: 80px; height: 80px; 
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            color: var(--text-muted);
-            font-size: 1.8rem;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer;
+            width: 80px; height: 80px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color); border-radius: 20px;
+            color: var(--text-muted); font-size: 2rem;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
         }
+
+        /* --- FOOTER ACTION BAR --- */
+        .footer {
+            padding: 20px 40px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .action-btn {
+            width: 64px; height: 64px; border-radius: 50%;
+            border: none; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; cursor: pointer; color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .action-btn:active { transform: scale(0.9); }
+        .btn-repeat { background: #334155; } /* Тёмно-серый для повтора */
+        .btn-done { background: var(--success); }
 
         /* Loader */
         .loader-container { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
@@ -104,22 +105,28 @@
     <div id="view-loading" class="view active">
         <div class="loader-container">
             <div class="loader"></div>
-            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Подключение к таблице...</p>
+            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Загрузка колод...</p>
         </div>
     </div>
 
     <div id="view-topics" class="view">
-        <div class="header"><h1>Колоды</h1></div>
+        <div class="header"><h1>Мои Слова</h1></div>
         <div id="topics-grid" class="topics-grid"></div>
     </div>
 
     <div id="view-deck" class="view">
         <div class="header">
             <button class="back-btn" onclick="showView('topics')">✕</button>
-            <h1 id="deck-title">Deck</h1>
-            <span id="deck-counter" style="color: var(--text-muted); font-weight: 600;">0</span>
+            <h1 id="deck-title">---</h1>
+            <span id="deck-counter">0</span>
         </div>
+        
         <div id="card-stage"></div>
+
+        <div class="footer">
+            <button class="action-btn btn-repeat" onclick="Engine.manualSwipe('right')">🔁</button>
+            <button class="action-btn btn-done" onclick="Engine.manualSwipe('left')">✓</button>
+        </div>
     </div>
 
     <script>
@@ -132,19 +139,14 @@
         let appData = {};
         let currentSession = [];
 
-        // --- API LAYER ---
         const api = {
             async fetchData() {
-                if (!CONFIG.apiKey || !CONFIG.sheetId) {
-                    throw new Error("В URL нет параметров ?key=...&id=...");
-                }
-
+                if (!CONFIG.apiKey || !CONFIG.sheetId) throw new Error("Конфиг не найден в URL");
                 const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}?key=${CONFIG.apiKey}`);
                 const meta = await metaRes.json();
                 if (meta.error) throw new Error(meta.error.message);
 
                 const sheetNames = meta.sheets.map(s => s.properties.title);
-                
                 const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
                 const dataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`);
                 const dataJSON = await dataRes.json();
@@ -153,19 +155,15 @@
                 dataJSON.valueRanges.forEach((range, idx) => {
                     const name = sheetNames[idx];
                     const rows = range.values || [];
-                    const cards = rows
-                        .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
-                        .map(row => ({ text1: row[0], text2: row[1] || "" }));
-                    
+                    const cards = rows.filter(row => row[0] && row[0] !== "text1").map(row => ({ text1: row[0], text2: row[1] || "" }));
                     if (cards.length > 0) result[name] = cards;
                 });
                 return result;
             }
         };
 
-        // --- CORE ENGINE (Виртуальный стек) ---
         const Engine = {
-            THRESHOLD: 120,
+            THRESHOLD: 100,
 
             initDeck(name) {
                 currentSession = [...appData[name]];
@@ -178,23 +176,19 @@
 
             spawn() {
                 const stage = document.getElementById('card-stage');
-                // Держим в DOM только 2 карты
                 while (stage.children.length < 2 && currentSession.length > 0) {
                     const data = currentSession.shift();
-                    const cardEl = this.createCardEl(data);
-                    stage.prepend(cardEl); // Новая карта всегда снизу
+                    stage.prepend(this.createCardEl(data));
                 }
 
                 const top = stage.lastElementChild;
                 if (top && !top.classList.contains('card-active')) {
                     top.className = 'card card-active animating';
-                    this.bindEvents(top, top.dataset); 
+                    this.bindEvents(top);
                 }
 
                 const next = stage.firstElementChild;
-                if (next && next !== top) {
-                    next.className = 'card card-next animating';
-                }
+                if (next && next !== top) next.className = 'card card-next animating';
             },
 
             createCardEl(data) {
@@ -202,36 +196,27 @@
                 div.className = 'card card-next';
                 div.dataset.t1 = data.text1;
                 div.dataset.t2 = data.text2;
-                
-                // ВОССТАНОВЛЕННАЯ СТРУКТУРА ВЕРСТКИ
                 div.innerHTML = `
                     <div class="card-body">
                         <div class="card-text-primary">${data.text1}</div>
-                        <div class="card-eye-zone">
-                            <button class="reveal-btn">👁</button>
-                        </div>
+                        <div class="card-eye-zone"><button class="reveal-btn">👁</button></div>
                         <div class="card-text-secondary">${data.text2}</div>
                     </div>
                 `;
-
                 const btn = div.querySelector('.reveal-btn');
-                const eyeZone = div.querySelector('.card-eye-zone');
-                const sub = div.querySelector('.card-text-secondary');
-                
-                btn.onpointerdown = (e) => e.stopPropagation();
+                btn.onpointerdown = e => e.stopPropagation();
                 btn.onclick = () => {
-                    eyeZone.style.display = 'none';
-                    sub.style.display = 'block';
+                    div.querySelector('.card-eye-zone').style.display = 'none';
+                    div.querySelector('.card-text-secondary').style.display = 'block';
                 };
-
                 return div;
             },
 
-            bindEvents(el, data) {
+            bindEvents(el) {
                 let start = { x: 0, y: 0 };
                 let current = { x: 0, y: 0 };
 
-                const move = (e) => {
+                const move = e => {
                     current.x = e.clientX - start.x;
                     current.y = e.clientY - start.y;
                     el.style.setProperty('--x', `${current.x}px`);
@@ -243,17 +228,16 @@
                     document.removeEventListener('pointermove', move);
                     document.removeEventListener('pointerup', up);
                     el.classList.add('animating');
-
                     if (Math.abs(current.x) > this.THRESHOLD) {
-                        this.swipe(el, current.x > 0 ? 'right' : 'left', data);
+                        this.swipe(el, current.x > 0 ? 'right' : 'left');
                     } else {
-                        el.style.setProperty('--x', `0px`);
-                        el.style.setProperty('--y', `0px`);
-                        el.style.setProperty('--r', `0deg`);
+                        el.style.setProperty('--x', '0px');
+                        el.style.setProperty('--y', '0px');
+                        el.style.setProperty('--r', '0deg');
                     }
                 };
 
-                el.onpointerdown = (e) => {
+                el.onpointerdown = e => {
                     if (e.target.closest('button')) return;
                     start = { x: e.clientX, y: e.clientY };
                     current = { x: 0, y: 0 };
@@ -263,14 +247,19 @@
                 };
             },
 
-            swipe(el, dir, data) {
+            manualSwipe(dir) {
+                const top = document.querySelector('.card-active');
+                if (top) this.swipe(top, dir);
+            },
+
+            swipe(el, dir) {
+                el.classList.add('animating');
                 const outX = dir === 'right' ? 1000 : -1000;
                 el.style.setProperty('--x', `${outX}px`);
                 el.style.opacity = '0';
 
-                // Свайп вправо = карточка уходит в конец очереди
                 if (dir === 'right') {
-                    currentSession.push({ text1: data.t1, text2: data.t2 });
+                    currentSession.push({ text1: el.dataset.t1, text2: el.dataset.t2 });
                 }
 
                 setTimeout(() => {
@@ -287,7 +276,6 @@
             }
         };
 
-        // --- UI CONTROL ---
         function showView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(`view-${id}`).classList.add('active');
@@ -299,13 +287,12 @@
             Object.keys(appData).forEach(name => {
                 const div = document.createElement('div');
                 div.className = 'topic-card';
-                div.innerHTML = `<strong style="font-size:1.1rem">${name}</strong><div style="color:var(--text-muted); font-size:0.9rem; margin-top:8px">${appData[name].length} cards</div>`;
+                div.innerHTML = `<strong>${name}</strong><div style="color:var(--text-muted); font-size:0.8rem; margin-top:5px">${appData[name].length} карточек</div>`;
                 div.onclick = () => Engine.initDeck(name);
                 grid.appendChild(div);
             });
         }
 
-        // --- STARTUP ---
         window.onload = async () => {
             try {
                 appData = await api.fetchData();

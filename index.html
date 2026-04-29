@@ -11,7 +11,7 @@
             --text-main: #e2e8f0;
             --text-muted: #64748b;
             --accent: #3b82f6;
-            --border: rgba(255, 255, 255, 0.1);
+            --border-color: rgba(255, 255, 255, 0.1);
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -29,16 +29,16 @@
         /* Header */
         .header { 
             padding: 20px; display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border-color);
         }
-        .header h1 { font-size: 1.2rem; margin: 0; }
-        .back-btn { background: none; border: none; color: var(--accent); font-size: 1.5rem; cursor: pointer; }
+        .header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; }
+        .back-btn { background: none; border: none; color: var(--accent); font-size: 1.5rem; cursor: pointer; padding: 0 10px; }
 
         /* Topics List */
         .topics-grid { padding: 15px; overflow-y: auto; display: grid; gap: 12px; }
         .topic-card { 
             background: var(--card-bg); padding: 20px; border-radius: 16px;
-            border: 1px solid var(--border); cursor: pointer;
+            border: 1px solid var(--border-color); cursor: pointer;
         }
 
         /* Card Stage */
@@ -47,12 +47,14 @@
             perspective: 1000px;
         }
 
+        /* --- ВОССТАНОВЛЕННЫЙ ДИЗАЙН КАРТОЧЕК --- */
         .card {
             position: absolute; inset: 0;
-            background: var(--card-bg); border-radius: 28px;
-            border: 1px solid var(--border); padding: 30px;
+            background-color: var(--card-bg); border-radius: 24px;
+            border: 1px solid var(--border-color);
             display: flex; flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            overflow: hidden;
             transform: translate(var(--x, 0), var(--y, 0)) rotate(var(--r, 0));
             touch-action: none; user-select: none;
         }
@@ -60,22 +62,40 @@
         .card.animating { transition: transform 0.4s cubic-bezier(0.15, 0.3, 0.25, 1), opacity 0.4s; }
 
         .card-active { z-index: 2; opacity: 1; }
-        .card-next { z-index: 1; transform: scale(0.94) translateY(15px); opacity: 0.4; }
+        .card-next { z-index: 1; transform: scale(0.96) translateY(10px); opacity: 0.4; }
 
-        /* Card Content */
-        .card-main { font-size: 1.6rem; font-weight: 600; line-height: 1.3; margin-bottom: auto; }
-        .card-sub { font-size: 1.3rem; color: var(--accent); margin-top: 10px; display: none; }
-        
-        .eye-btn {
-            margin: auto; width: 70px; height: 70px; border-radius: 20px;
-            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-            color: var(--text-muted); font-size: 28px; display: flex;
-            align-items: center; justify-content: center; cursor: pointer;
+        .card-body { 
+            flex: 1; padding: 32px 24px; 
+            display: flex; flex-direction: column; 
+            align-items: flex-start; /* Текст всегда слева */
+        }
+
+        .card-text-primary {
+            font-size: 1.8rem; font-weight: 600; line-height: 1.3; margin-bottom: 15px;
+        }
+
+        .card-text-secondary {
+            font-size: 1.5rem; color: var(--accent); display: none; line-height: 1.3;
+        }
+
+        .card-eye-zone {
+            flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
+        }
+
+        .reveal-btn {
+            width: 80px; height: 80px; 
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: var(--text-muted);
+            font-size: 1.8rem;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
         }
 
         /* Loader */
         .loader-container { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .loader { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+        .loader { width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -84,12 +104,12 @@
     <div id="view-loading" class="view active">
         <div class="loader-container">
             <div class="loader"></div>
-            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Loading spreadsheet...</p>
+            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Подключение к таблице...</p>
         </div>
     </div>
 
     <div id="view-topics" class="view">
-        <div class="header"><h1>Мои карточки</h1></div>
+        <div class="header"><h1>Колоды</h1></div>
         <div id="topics-grid" class="topics-grid"></div>
     </div>
 
@@ -97,7 +117,7 @@
         <div class="header">
             <button class="back-btn" onclick="showView('topics')">✕</button>
             <h1 id="deck-title">Deck</h1>
-            <span id="deck-counter" style="color: var(--text-muted)">0</span>
+            <span id="deck-counter" style="color: var(--text-muted); font-weight: 600;">0</span>
         </div>
         <div id="card-stage"></div>
     </div>
@@ -115,16 +135,16 @@
         // --- API LAYER ---
         const api = {
             async fetchData() {
-                if (!CONFIG.apiKey || !CONFIG.sheetId) throw new Error("Missing URL parameters (key/id)");
+                if (!CONFIG.apiKey || !CONFIG.sheetId) {
+                    throw new Error("В URL нет параметров ?key=...&id=...");
+                }
 
-                // 1. Получаем список листов
                 const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}?key=${CONFIG.apiKey}`);
                 const meta = await metaRes.json();
                 if (meta.error) throw new Error(meta.error.message);
 
                 const sheetNames = meta.sheets.map(s => s.properties.title);
                 
-                // 2. Получаем данные всех листов сразу
                 const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
                 const dataRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`);
                 const dataJSON = await dataRes.json();
@@ -134,7 +154,7 @@
                     const name = sheetNames[idx];
                     const rows = range.values || [];
                     const cards = rows
-                        .filter(row => row[0] && row[0] !== "text1")
+                        .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
                         .map(row => ({ text1: row[0], text2: row[1] || "" }));
                     
                     if (cards.length > 0) result[name] = cards;
@@ -143,7 +163,7 @@
             }
         };
 
-        // --- ENGINE ---
+        // --- CORE ENGINE (Виртуальный стек) ---
         const Engine = {
             THRESHOLD: 120,
 
@@ -158,21 +178,19 @@
 
             spawn() {
                 const stage = document.getElementById('card-stage');
-                // Поддерживаем 2 карты в DOM
+                // Держим в DOM только 2 карты
                 while (stage.children.length < 2 && currentSession.length > 0) {
                     const data = currentSession.shift();
                     const cardEl = this.createCardEl(data);
                     stage.prepend(cardEl); // Новая карта всегда снизу
                 }
 
-                // Активируем верхнюю карту
                 const top = stage.lastElementChild;
                 if (top && !top.classList.contains('card-active')) {
                     top.className = 'card card-active animating';
                     this.bindEvents(top, top.dataset); 
                 }
 
-                // Стилизуем нижнюю
                 const next = stage.firstElementChild;
                 if (next && next !== top) {
                     next.className = 'card card-next animating';
@@ -182,22 +200,27 @@
             createCardEl(data) {
                 const div = document.createElement('div');
                 div.className = 'card card-next';
-                // Сохраняем данные прямо в DOM-узле для простоты
                 div.dataset.t1 = data.text1;
                 div.dataset.t2 = data.text2;
                 
+                // ВОССТАНОВЛЕННАЯ СТРУКТУРА ВЕРСТКИ
                 div.innerHTML = `
-                    <div class="card-main">${data.text1}</div>
-                    <div class="card-sub">${data.text2}</div>
-                    <div class="eye-btn">👁</div>
+                    <div class="card-body">
+                        <div class="card-text-primary">${data.text1}</div>
+                        <div class="card-eye-zone">
+                            <button class="reveal-btn">👁</button>
+                        </div>
+                        <div class="card-text-secondary">${data.text2}</div>
+                    </div>
                 `;
 
-                const btn = div.querySelector('.eye-btn');
-                const sub = div.querySelector('.card-sub');
+                const btn = div.querySelector('.reveal-btn');
+                const eyeZone = div.querySelector('.card-eye-zone');
+                const sub = div.querySelector('.card-text-secondary');
                 
                 btn.onpointerdown = (e) => e.stopPropagation();
                 btn.onclick = () => {
-                    btn.style.display = 'none';
+                    eyeZone.style.display = 'none';
                     sub.style.display = 'block';
                 };
 
@@ -231,6 +254,7 @@
                 };
 
                 el.onpointerdown = (e) => {
+                    if (e.target.closest('button')) return;
                     start = { x: e.clientX, y: e.clientY };
                     current = { x: 0, y: 0 };
                     el.classList.remove('animating');
@@ -244,7 +268,7 @@
                 el.style.setProperty('--x', `${outX}px`);
                 el.style.opacity = '0';
 
-                // Если вправо — возвращаем в конец очереди
+                // Свайп вправо = карточка уходит в конец очереди
                 if (dir === 'right') {
                     currentSession.push({ text1: data.t1, text2: data.t2 });
                 }
@@ -275,7 +299,7 @@
             Object.keys(appData).forEach(name => {
                 const div = document.createElement('div');
                 div.className = 'topic-card';
-                div.innerHTML = `<strong>${name}</strong><div style="color:var(--text-muted); font-size:0.8rem; margin-top:5px">${appData[name].length} cards</div>`;
+                div.innerHTML = `<strong style="font-size:1.1rem">${name}</strong><div style="color:var(--text-muted); font-size:0.9rem; margin-top:8px">${appData[name].length} cards</div>`;
                 div.onclick = () => Engine.initDeck(name);
                 grid.appendChild(div);
             });
@@ -288,7 +312,7 @@
                 renderTopics();
                 showView('topics');
             } catch (err) {
-                document.getElementById('loading-msg').innerHTML = `<span style="color:#ff6b6b">Error: ${err.message}</span>`;
+                document.getElementById('loading-msg').innerHTML = `<span style="color:#ff6b6b">Ошибка: ${err.message}</span>`;
             }
         };
     </script>

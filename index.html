@@ -24,12 +24,6 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      /*
-        FIX #1: убрали touch-action: none с body.
-        Это блокировало ВСЕ нативные жесты и вызывало конфликты
-        с pointer events на iOS/Android. Управление touch-action
-        теперь точечное — только на карточке.
-      */
     }
 
     .view { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
@@ -53,7 +47,6 @@
       padding: 20px; border-radius: 16px;
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer;
-      /* FIX #2: touch-action: manipulation убирает 300ms задержку клика на мобильном */
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
@@ -69,13 +62,9 @@
       z-index: 10;
     }
     #header-topic-title {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-      text-transform: lowercase;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      text-align: center; color: var(--text-muted);
+      font-size: 0.8rem; text-transform: lowercase;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     #deck-counter { text-align: right; font-size: 0.9rem; font-weight: 500; }
 
@@ -88,112 +77,66 @@
 
     #deck-container {
       position: relative;
-      width: 90vw;
-      height: 80vh;
-      max-width: 500px;
-      /*
-        FIX #3: убрали perspective: 1000px.
-        Он создавал 3D-контекст рендеринга без нужды (свайп 2D),
-        заставляя GPU выделять дополнительные ресурсы под все дочерние слои.
-      */
+      width: 90vw; height: 80vh; max-width: 500px;
     }
 
     /*
-      FIX #4: КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ.
-      Удалено правило .card:not(:last-child) { transform: scale(0.96)... }.
-      Это правило пересчитывается при ЛЮБОМ изменении DOM-порядка,
-      и так как transition задан на .card, браузер запускает анимацию
-      ОДНОВРЕМЕННО на всех карточках — отсюда и "размазывание".
-      Теперь стекинг управляется JS через классы .card-back / .card-top.
+      Transition всегда на карточке — это позволяет анимировать смену состояний.
+      Подавляем только там, где нужно (классы .card-no-anim, .card-dragging).
     */
-
     .card {
-      position: absolute;
-      inset: 0;
+      position: absolute; inset: 0;
       background-color: var(--card-bg);
       border: 1px solid var(--border-color);
       border-radius: 24px;
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       overflow: hidden;
       box-shadow: 0 15px 35px rgba(0,0,0,0.3);
-      /*
-        FIX #5: убрали will-change отсюда.
-        will-change на ВСЕХ карточках сразу создаёт отдельный compositing layer
-        для каждой — это перегружает GPU на мобильных устройствах.
-        will-change теперь добавляется только к той карточке, что реально двигается.
-      */
-    }
-
-    /* Фоновые карточки: без transition здесь — transition добавляется классом .animated */
-    .card-back {
-      transform: scale(0.96) translateY(10px);
-      opacity: 0.4;
-    }
-
-    /* Верхняя карточка: явно сброшена в identity */
-    .card-top {
-      transform: scale(1) translateY(0);
-      opacity: 1;
-      touch-action: none; /* none только на активной карточке для перехвата свайпов */
-    }
-
-    /* Класс для плавного перехода — добавляется только когда нужна анимация */
-    .card-animated {
       transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
     }
 
-    /* Во время перетаскивания: никаких transition, добавляем will-change только сейчас */
-    .card-dragging {
-      transition: none !important;
-      will-change: transform;
-    }
+    /* Состояния стека — управляются только через JS */
+    .card-back { transform: scale(0.96) translateY(10px); opacity: 0.4; }
+    .card-top  { transform: scale(1) translateY(0);       opacity: 1;   touch-action: none; }
 
-    /* Анимация вылета за экран */
+    /* Подавляем transition: перед DOM-манипуляциями, снимаем сразу после reflow */
+    .card-no-anim { transition: none !important; }
+
+    /* Во время перетаскивания */
+    .card-dragging { transition: none !important; will-change: transform; }
+
+    /* Вылет за экран — перекрывает всё */
     .card-flying {
-      transition: transform 0.3s ease-out, opacity 0.25s ease-out !important;
+      transition: transform 0.32s ease-out, opacity 0.25s ease-out !important;
     }
 
     .card-body {
       flex: 1; padding: 32px 24px;
-      display: flex; flex-direction: column;
-      align-items: flex-start;
+      display: flex; flex-direction: column; align-items: flex-start;
       user-select: none;
     }
-
     .card-main-row { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; }
     .card-text-primary { font-size: 1.7rem; font-weight: 400; line-height: 1.2; text-align: left; flex: 1; }
 
     .play-btn {
       background: transparent; border: none; color: var(--accent-blue);
       font-size: 1.6rem; margin-left: 15px; cursor: pointer;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
     }
-
     .card-text-secondary {
       font-size: 1.15rem; color: var(--text-muted);
-      margin-top: 16px; text-align: left;
-      display: none; width: 100%;
+      margin-top: 16px; text-align: left; display: none; width: 100%;
     }
-
     .card-eye-zone {
-      flex: 1;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      flex: 1; width: 100%; display: flex; justify-content: center; align-items: center;
     }
-
     .reveal-btn {
       width: 156px; height: 156px;
       background: transparent; border: 1px solid var(--border-color); border-radius: 14px;
       color: var(--text-muted); font-size: 3rem; cursor: pointer;
       display: flex; justify-content: center; align-items: center;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
     }
-
     .card-actions {
       display: flex; gap: 1px;
       background-color: var(--border-color);
@@ -202,8 +145,7 @@
     .action-btn {
       flex: 1; background-color: var(--card-bg); border: none; color: var(--text-muted);
       font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
     }
     .action-btn:active { background-color: var(--accent-soft); }
   </style>
@@ -233,7 +175,7 @@
       spreadsheetId: urlParams.get('id')
     };
 
-    /* --- 2. API СЛОЙ --- */
+    /* --- 2. API --- */
     const api = {
       async fetchData() {
         if (!CONFIG.apiKey || !CONFIG.spreadsheetId) {
@@ -241,35 +183,31 @@
             <div style="padding: 20px; text-align: center; color: #ff6b6b;">
               <h3>Конфигурация не найдена</h3>
               <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
-                Пожалуйста, добавьте параметры в URL:<br>
-                ?key=ВАШ_КЛЮЧ&id=ID_ТАБЛИЦЫ
+                Пожалуйста, добавьте параметры в URL:<br>?key=ВАШ_КЛЮЧ&id=ID_ТАБЛИЦЫ
               </p>
-            </div>
-          `;
+            </div>`;
           return null;
         }
         try {
           const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}?key=${CONFIG.apiKey}`;
-          const metaResponse = await fetch(metaUrl);
-          const metaData = await metaResponse.json();
+          const metaData = await (await fetch(metaUrl)).json();
           if (metaData.error) throw new Error(metaData.error.message);
 
           const sheetNames = metaData.sheets.map(s => s.properties.title);
-          const ranges = sheetNames.map(name => `${name}!A1:B1000`).join('&ranges=');
-          const dataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`;
-          const dataResponse = await fetch(dataUrl);
-          const dataJSON = await dataResponse.json();
+          const ranges = sheetNames.map(n => `${n}!A1:B1000`).join('&ranges=');
+          const dataJSON = await (await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.spreadsheetId}/values:batchGet?key=${CONFIG.apiKey}&ranges=${ranges}`
+          )).json();
 
-          const formattedData = {};
-          dataJSON.valueRanges.forEach((range, index) => {
-            const name = sheetNames[index];
-            const rows = range.values || [];
-            const cards = rows
+          const result = {};
+          dataJSON.valueRanges.forEach((range, i) => {
+            const name = sheetNames[i];
+            const cards = (range.values || [])
               .filter(row => row.length >= 1 && row[0] && row[0] !== "text1")
               .map(row => ({ text1: row[0], text2: row[1] || "" }));
-            if (cards.length > 0) formattedData[name] = { name, cards };
+            if (cards.length > 0) result[name] = { name, cards };
           });
-          return formattedData;
+          return result;
         } catch (e) {
           console.error("API Error:", e);
           alert("Ошибка доступа к Google Sheets: " + e.message);
@@ -280,15 +218,8 @@
 
     /* --- 3. СОСТОЯНИЕ --- */
     let appData = {};
-    let currentTopic = null;
     let activeCard = null;
-
-    const drag = {
-      active: false,
-      startX: 0, startY: 0,
-      dx: 0, dy: 0
-    };
-
+    const drag = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
     const THRESHOLD = window.innerWidth * 0.25;
 
     /* --- 4. НАВИГАЦИЯ --- */
@@ -310,46 +241,49 @@
       });
     }
 
-    /* --- 6. КОЛОДА --- */
+    /* --- 6. СТЕКИНГ ---
+      Принцип: перед любой DOM-манипуляцией добавляем .card-no-anim,
+      делаем изменение, вызываем reflow (offsetHeight), убираем .card-no-anim.
+      Это гарантирует: браузер видит "было" и "стало" в разных кадрах
+      → transition срабатывает там, где нужен, и не срабатывает там, где не нужен.
+    */
+    function setStackClasses(cards, withTransition) {
+      if (!withTransition) {
+        // Без анимации: подавляем transition, меняем классы, reflow, снимаем
+        cards.forEach(card => card.classList.add('card-no-anim'));
+        void document.getElementById('deck-container').offsetHeight; // reflow
+        cards.forEach((card, i) => {
+          const isTop = i === cards.length - 1;
+          card.classList.toggle('card-top', isTop);
+          card.classList.toggle('card-back', !isTop);
+        });
+        void document.getElementById('deck-container').offsetHeight; // reflow
+        cards.forEach(card => card.classList.remove('card-no-anim'));
+      } else {
+        // С анимацией: просто меняем классы, transition сработает сам
+        cards.forEach((card, i) => {
+          const isTop = i === cards.length - 1;
+          card.classList.toggle('card-top', isTop);
+          card.classList.toggle('card-back', !isTop);
+        });
+      }
+    }
+
+    /* --- 7. КОЛОДА --- */
     function startDeck(topic) {
-      currentTopic = topic;
       document.getElementById('header-topic-title').textContent = topic.name;
       document.getElementById('deck-counter').textContent = topic.cards.length;
 
       const container = document.getElementById('deck-container');
       container.innerHTML = '';
-
-      // Добавляем в обратном порядке (последняя в DOM = верхняя визуально)
       [...topic.cards].reverse().forEach(c => container.appendChild(createCard(c)));
+
+      // Расставляем без анимации при первом показе
+      const cards = [...container.querySelectorAll('.card')];
+      setStackClasses(cards, false);
+
       showView('deck');
-      updateStackClasses(false); // без анимации при первом показе
       bindTopCard();
-    }
-
-    /*
-      FIX #4 (продолжение): updateStackClasses управляет классами стекинга через JS.
-      Параметр animate=true добавляет .card-animated, чтобы transition
-      срабатывал ТОЛЬКО когда мы сами этого хотим, а не при любом DOM-изменении.
-    */
-    function updateStackClasses(animate) {
-      const cards = document.querySelectorAll('#deck-container .card');
-      cards.forEach((card, i) => {
-        const isTop = (i === cards.length - 1);
-
-        // Сначала убираем все анимационные классы, чтобы не накапливались
-        card.classList.remove('card-top', 'card-back', 'card-animated');
-
-        if (animate) {
-          // requestAnimationFrame гарантирует, что браузер применит
-          // удаление классов ДО добавления нового — иначе transition не сработает
-          requestAnimationFrame(() => {
-            card.classList.add(isTop ? 'card-top' : 'card-back');
-            card.classList.add('card-animated');
-          });
-        } else {
-          card.classList.add(isTop ? 'card-top' : 'card-back');
-        }
-      });
     }
 
     function createCard(data) {
@@ -369,20 +303,16 @@
         <div class="card-actions">
           <button class="action-btn" data-action="left">Удалить</button>
           <button class="action-btn" data-action="right">В конец</button>
-        </div>
-      `;
+        </div>`;
 
       const eye = el.querySelector('.reveal-btn');
       const secText = el.querySelector('.card-text-secondary');
-      const play = el.querySelector('.play-btn');
 
       eye.onclick = () => {
         eye.closest('.card-eye-zone').style.display = 'none';
         secText.style.display = 'block';
       };
-
-      play.onclick = () => console.log("Play:", data.text1);
-
+      el.querySelector('.play-btn').onclick = () => console.log("Play:", data.text1);
       el.querySelectorAll('[data-action]').forEach(btn => {
         btn.onclick = () => triggerSwipe(btn.dataset.action);
       });
@@ -390,38 +320,26 @@
       return el;
     }
 
-    /* --- 7. ЖЕСТЫ (FIX #6) --- */
-    /*
-      Убрали setPointerCapture — он на iOS/Android перехватывал события
-      у дочерних кнопок даже после stopPropagation и вызывал глитчи.
-      Теперь используем document-level listeners, которые добавляются
-      только на время активного перетаскивания и сразу удаляются.
-    */
+    /* --- 8. ЖЕСТЫ --- */
     function bindTopCard() {
       const cards = document.querySelectorAll('#deck-container .card');
       if (!cards.length) return;
-
       activeCard = cards[cards.length - 1];
-      // Убедимся, что у предыдущей карточки не остались висеть обработчики
       activeCard.onpointerdown = onDragStart;
     }
 
     function onDragStart(e) {
-      // Игнорируем нажатия на кнопки внутри карточки
-      if (e.target.closest('button')) return;
+      if (e.target.closest('button')) return; // кнопки обрабатывают себя сами
 
       drag.active = true;
-      drag.startX = e.clientX;
-      drag.startY = e.clientY;
-      drag.dx = 0;
-      drag.dy = 0;
+      drag.startX = e.clientX; drag.startY = e.clientY;
+      drag.dx = 0; drag.dy = 0;
 
-      activeCard.classList.remove('card-top', 'card-animated');
       activeCard.classList.add('card-dragging');
+      activeCard.classList.remove('card-top'); // убираем touch-action: none → handled by card-top
 
-      // Listeners на document — надёжнее setPointerCapture на мобильных
       document.addEventListener('pointermove', onDragMove, { passive: true });
-      document.addEventListener('pointerup', onDragEnd);
+      document.addEventListener('pointerup',    onDragEnd);
       document.addEventListener('pointercancel', onDragCancel);
     }
 
@@ -434,50 +352,48 @@
 
     function onDragEnd() {
       if (!drag.active) return;
-      removeDragListeners();
+      cleanupDragListeners();
       drag.active = false;
-
       activeCard.classList.remove('card-dragging');
 
       if (Math.abs(drag.dx) > THRESHOLD) {
         triggerSwipe(drag.dx > 0 ? 'right' : 'left');
       } else {
-        // Возврат на место с анимацией
-        activeCard.classList.add('card-top', 'card-animated');
+        // Возврат: восстанавливаем card-top (transition включён, карточка плавно встаёт)
         activeCard.style.transform = '';
+        activeCard.classList.add('card-top');
       }
     }
 
     function onDragCancel() {
       if (!drag.active) return;
-      removeDragListeners();
+      cleanupDragListeners();
       drag.active = false;
       activeCard.classList.remove('card-dragging');
-      activeCard.classList.add('card-top', 'card-animated');
       activeCard.style.transform = '';
+      activeCard.classList.add('card-top');
     }
 
-    function removeDragListeners() {
+    function cleanupDragListeners() {
       document.removeEventListener('pointermove', onDragMove);
-      document.removeEventListener('pointerup', onDragEnd);
+      document.removeEventListener('pointerup',    onDragEnd);
       document.removeEventListener('pointercancel', onDragCancel);
     }
 
-    /* --- 8. СВАЙП --- */
+    /* --- 9. СВАЙП --- */
     function triggerSwipe(dir) {
       if (!activeCard) return;
 
-      const flyX = dir === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
-      const flyY = drag.dy;
-      const rot = dir === 'right' ? 25 : -25;
-
       const target = activeCard;
-      activeCard = null; // Предотвращаем повторный тригер
+      activeCard = null;
 
-      // Добавляем класс вылета (он перекрывает все transition через !important)
-      target.classList.remove('card-dragging');
+      const flyX = (dir === 'right' ? 1 : -1) * window.innerWidth * 1.5;
+      const rot  = dir === 'right' ? 25 : -25;
+
+      // Запускаем анимацию вылета
+      target.classList.remove('card-dragging', 'card-top', 'card-back');
       target.classList.add('card-flying');
-      target.style.transform = `translate(${flyX}px, ${flyY}px) rotate(${rot}deg)`;
+      target.style.transform = `translate(${flyX}px, ${drag.dy}px) rotate(${rot}deg)`;
       target.style.opacity = '0';
 
       if (dir === 'left') {
@@ -486,39 +402,43 @@
       }
 
       setTimeout(() => {
+        const container = document.getElementById('deck-container');
+
         if (dir === 'left') {
           target.remove();
         } else {
-          // Сброс состояния карточки для повторного использования
-          target.classList.remove('card-flying', 'card-top', 'card-back', 'card-animated');
+          // Сбрасываем карточку БЕЗ анимации: card-no-anim + reflow
+          target.classList.remove('card-flying');
+          target.classList.add('card-no-anim');
           target.style.transform = '';
-          target.style.opacity = '';
+          target.style.opacity  = '';
 
-          // Сбрасываем раскрытое состояние
+          // Сбрасываем раскрытое состояние (eye/secondary)
           const eyeZone = target.querySelector('.card-eye-zone');
           const secText = target.querySelector('.card-text-secondary');
-          if (eyeZone) eyeZone.style.display = '';
-          if (secText) secText.style.display = '';
+          eyeZone.style.display = 'flex';   // явно, как в оригинале
+          secText.style.display = 'none';   // явно, как в оригинале
 
-          // Убираем transition перед prepend, чтобы не было прыжка
-          document.getElementById('deck-container').prepend(target);
+          container.prepend(target);
+
+          // Reflow: браузер фиксирует позицию до снятия card-no-anim
+          void container.offsetHeight;
+          target.classList.remove('card-no-anim');
+          // Теперь card-back будет применён с transition ниже
         }
 
-        // Обновляем классы стекинга С анимацией для плавного появления
-        updateStackClasses(true);
+        // Обновляем стек С анимацией для новой верхней карточки
+        const cards = [...container.querySelectorAll('.card')];
+        setStackClasses(cards, true);
         bindTopCard();
-      }, 320);
+      }, 340);
     }
 
-    /* --- 9. СТАРТ --- */
+    /* --- 10. СТАРТ --- */
     document.getElementById('btn-back').onclick = () => showView('topics');
 
     api.fetchData().then(data => {
-      if (data) {
-        appData = data;
-        renderTopics(data);
-        showView('topics');
-      }
+      if (data) { appData = data; renderTopics(data); showView('topics'); }
     });
   </script>
 </body>

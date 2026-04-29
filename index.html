@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Flashcards App</title>
+  <title>Flashcards App Pro</title>
   <style>
-    /* --- БАЗОВЫЕ СТИЛИ И ПЕРЕМЕННЫЕ --- */
     :root {
       --bg-color: #181818;
       --card-bg: #222222;
@@ -21,28 +20,22 @@
     body {
       background-color: var(--bg-color);
       color: var(--text-main);
-      height: 100dvh; /* Используем dvh для мобильных браузеров */
+      height: 100dvh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       touch-action: none;
     }
 
-    /* --- СИСТЕМА ЭКРАНОВ (ВЬЮ) --- */
-    .view {
-      display: none;
-      width: 100%;
-      height: 100%;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
+    /* --- СИСТЕМА ЭКРАНОВ --- */
+    .view { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
     .view.active { display: flex; }
+    #view-loading { justify-content: center; }
 
     /* --- ЭКРАН ЗАГРУЗКИ --- */
     .loader {
-      width: 40px; height: 40px;
-      border: 3px solid var(--border-color);
+      width: 30px; height: 30px;
+      border: 2px solid var(--border-color);
       border-top-color: var(--text-main);
       border-radius: 50%;
       animation: spin 1s linear infinite;
@@ -50,42 +43,50 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* --- ЭКРАН ТОПИКОВ --- */
-    #topics-container {
-      width: 90vw; max-width: 500px;
-      display: flex; flex-direction: column; gap: 15px;
-    }
+    #view-topics { padding-top: 40px; }
+    #topics-container { width: 90vw; max-width: 500px; display: flex; flex-direction: column; gap: 12px; }
     .topic-item {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
       padding: 20px; border-radius: 16px;
       display: flex; justify-content: space-between; align-items: center;
-      cursor: pointer; transition: background 0.2s;
+      cursor: pointer;
     }
     .topic-item:active { background: var(--accent-soft); }
-    .topic-name-list { font-size: 1.2rem; font-weight: 500; }
-    .topic-count { color: var(--text-muted); font-size: 0.9rem; }
+    .topic-count { color: var(--text-muted); font-size: 0.85rem; }
 
     /* --- ЭКРАН КОЛОДЫ: ШАПКА --- */
     #deck-header {
       width: 90vw; max-width: 500px;
-      display: flex; justify-content: space-between; align-items: center;
+      display: grid;
+      grid-template-columns: 40px 1fr 40px; /* Сетка для идеального центрирования */
+      align-items: center;
       padding: 20px 0;
-      position: absolute; top: 0; z-index: 10;
+      z-index: 10;
     }
+    #header-topic-title { 
+      text-align: center; 
+      color: var(--text-muted); 
+      font-size: 0.8rem; 
+      text-transform: lowercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #deck-counter { text-align: right; font-size: 0.9rem; font-weight: 500; }
+
     .icon-btn {
       background: transparent; border: none; color: var(--text-main);
-      font-size: 1.5rem; cursor: pointer; padding: 5px;
-      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; cursor: pointer; display: flex; align-items: center;
     }
 
-    /* --- ЭКРАН КОЛОДЫ: КОНТЕЙНЕР --- */
+    /* --- КОНТЕЙНЕР КОЛОДЫ --- */
     #deck-container {
       position: relative;
       width: 90vw;
       height: 80vh;
       max-width: 500px;
       perspective: 1000px;
-      margin-bottom: 20px;
     }
 
     /* --- КАРТОЧКА --- */
@@ -100,46 +101,49 @@
       overflow: hidden;
       will-change: transform, opacity;
       transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
     }
     .card.dragging { transition: none; }
-    .card:not(:last-child) { transform: scale(0.96) translateY(10px); opacity: 0.5; }
+    .card:not(:last-child) { transform: scale(0.96) translateY(10px); opacity: 0.4; }
 
-    /* Внутренности карточки */
-    .card-content {
-      flex: 1; padding: 24px;
+    /* Контент карточки (Левое выравнивание) */
+    .card-body {
+      flex: 1; padding: 32px 24px;
       display: flex; flex-direction: column;
+      align-items: flex-start; /* Все по левому краю */
       user-select: none;
     }
     
-    .card-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-    .card-topic-label { color: var(--text-muted); font-size: 0.8rem; text-transform: lowercase; margin-bottom: 12px; }
-    .card-text-primary { font-size: 1.8rem; font-weight: 400; line-height: 1.3; }
+    .card-main-row { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; }
+    .card-text-primary { font-size: 1.7rem; font-weight: 400; line-height: 1.2; text-align: left; flex: 1; }
     
     .play-btn {
-      background: transparent; border: none; cursor: pointer;
-      color: var(--accent-blue); font-size: 1.8rem;
-      padding: 0; margin-left: 15px; display: flex; align-items: center;
+      background: transparent; border: none; color: var(--accent-blue);
+      font-size: 1.6rem; margin-left: 15px; cursor: pointer;
     }
 
-    .card-center-area {
-      flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    .card-text-secondary {
+      font-size: 1.15rem; color: var(--text-muted);
+      margin-top: 16px; text-align: left;
+      display: none; width: 100%;
+    }
+
+    /* Зона глаза */
+    .card-eye-zone {
+      flex: 1;           /* Занимает всё оставшееся пространство карточки */
+      width: 100%; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; /* Центровка по вертикали и горизонтали */
     }
     .reveal-btn {
-      width: 64px; height: 64px;
-      background: transparent; border: 1px solid var(--border-color); border-radius: 16px;
-      color: var(--text-muted); font-size: 1.5rem; cursor: pointer;
+      width: 156px; height: 156px;
+      background: transparent; border: 1px solid var(--border-color); border-radius: 14px;
+      color: var(--text-muted); font-size: 3rem; cursor: pointer;
       display: flex; justify-content: center; align-items: center;
-      transition: background 0.2s, color 0.2s;
-    }
-    .reveal-btn:active { background: var(--accent-soft); color: var(--text-main); }
-    
-    .card-text-secondary {
-      font-size: 1.2rem; color: var(--text-muted); font-style: italic;
-      margin-top: 20px; text-align: center; display: none; /* Скрыто по умолчанию */
     }
 
-    /* Нижние кнопки карточки */
+    /* Кнопки действий */
     .card-actions {
       display: flex; gap: 1px;
       background-color: var(--border-color);
@@ -147,281 +151,193 @@
     }
     .action-btn {
       flex: 1; background-color: var(--card-bg); border: none; color: var(--text-muted);
-      font-size: 0.85rem; font-weight: 500; cursor: pointer;
-      display: flex; justify-content: center; align-items: center; gap: 8px;
+      font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
     }
     .action-btn:active { background-color: var(--accent-soft); }
   </style>
 </head>
 <body>
 
-  <div id="view-loading" class="view active">
-    <div class="loader"></div>
-  </div>
+  <div id="view-loading" class="view active"><div class="loader"></div></div>
 
   <div id="view-topics" class="view">
-    <div id="topics-container">
-      </div>
+    <div id="topics-container"></div>
   </div>
 
   <div id="view-deck" class="view">
     <div id="deck-header">
       <button class="icon-btn" id="btn-back">←</button>
-      <div id="deck-counter" style="font-weight: 500;">0</div>
+      <div id="header-topic-title">topic_name</div>
+      <div id="deck-counter">0</div>
     </div>
-    <div id="deck-container">
-      </div>
+    <div id="deck-container"></div>
   </div>
 
   <script>
-    /* =========================================
-       1. СЛОЙ ДАННЫХ (API MOCK)
-       ========================================= */
+    /* 1. API СЛОЙ */
     const api = {
-      fetchData: () => {
-        return new Promise(resolve => {
-          setTimeout(() => {
-            resolve({
-              "topic_1": {
-                name: "French Verbs",
-                cards: [
-                  { text1: "Je regarde la télé.", text2: "Я смотрю телевизор.", res1: "", res2: "" },
-                  { text1: "Tu parles bien.", text2: "Ты хорошо говоришь.", res1: "", res2: "" },
-                  { text1: "Il mange une pomme.", text2: "Он ест яблоко.", res1: "", res2: "" }
-                ]
-              },
-              "topic_2": {
-                name: "English Idioms",
-                cards: [
-                  { text1: "Bite the bullet", text2: "Стиснуть зубы / Смириться", res1: "", res2: "" },
-                  { text1: "Under the weather", text2: "Чувствовать себя неважно", res1: "", res2: "" }
-                ]
-              }
-            });
-          }, 1000); // Эмуляция сетевой задержки 1 сек
-        });
-      }
+      fetchData: () => new Promise(resolve => {
+        setTimeout(() => resolve({
+          "france_verbs": {
+            name: "france_verbs",
+            cards: [
+              { text1: "Je regarde la télé.", text2: "Я смотрю телевизор.", res1: "", res2: "" },
+              { text1: "Tu parles français?", text2: "Ты говоришь по-французски?", res1: "", res2: "" }
+            ]
+          },
+          "it_terms": {
+            name: "it_terms",
+            cards: [
+              { text1: "Encryption", text2: "Шифрование", res1: "", res2: "" },
+              { text1: "Middleware", text2: "Промежуточное ПО", res1: "", res2: "" }
+            ]
+          }
+        }), 800);
+      })
     };
 
-    /* =========================================
-       2. СОСТОЯНИЕ И НАВИГАЦИЯ (APP STATE)
-       ========================================= */
+    /* 2. СОСТОЯНИЕ */
     let appData = {};
-    let currentCardsRemaining = 0;
+    let currentTopic = null;
+    let activeCard = null;
+    let dragData = { isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+    const THRESHOLD = window.innerWidth * 0.25;
 
-    const views = {
-      loading: document.getElementById('view-loading'),
-      topics: document.getElementById('view-topics'),
-      deck: document.getElementById('view-deck')
-    };
-
-    function showView(viewName) {
-      Object.values(views).forEach(v => v.classList.remove('active'));
-      views[viewName].classList.add('active');
+    /* 3. НАВИГАЦИЯ */
+    function showView(name) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById('view-' + name).classList.add('active');
     }
 
-    /* =========================================
-       3. РЕНДЕР ЭКРАНОВ
-       ========================================= */
-    
-    // Экран топиков
+    /* 4. ОТРИСОВКА ТОПИКОВ */
     function renderTopics(data) {
       const container = document.getElementById('topics-container');
       container.innerHTML = '';
-      
-      Object.keys(data).forEach(topicId => {
-        const topic = data[topicId];
-        const el = document.createElement('div');
-        el.className = 'topic-item';
-        el.innerHTML = `
-          <span class="topic-name-list">${topic.name}</span>
-          <span class="topic-count">${topic.cards.length} cards</span>
-        `;
-        el.onclick = () => initDeckScreen(topic);
-        container.appendChild(el);
+      Object.keys(data).forEach(id => {
+        const item = document.createElement('div');
+        item.className = 'topic-item';
+        item.innerHTML = `<span>${data[id].name}</span><span class="topic-count">${data[id].cards.length}</span>`;
+        item.onclick = () => startDeck(data[id]);
+        container.appendChild(item);
       });
     }
 
-    // Экран колоды
-    const deckContainer = document.getElementById('deck-container');
-    const counterEl = document.getElementById('deck-counter');
-
-    function updateCounter(count) {
-      currentCardsRemaining = count;
-      counterEl.textContent = currentCardsRemaining;
-    }
-
-    function initDeckScreen(topic) {
+    /* 5. ЛОГИКА КОЛОДЫ */
+    function startDeck(topic) {
+      currentTopic = topic;
+      document.getElementById('header-topic-title').textContent = topic.name;
+      document.getElementById('deck-counter').textContent = topic.cards.length;
+      const container = document.getElementById('deck-container');
+      container.innerHTML = '';
+      
+      [...topic.cards].reverse().forEach(c => container.appendChild(createCard(c)));
       showView('deck');
-      deckContainer.innerHTML = '';
-      updateCounter(topic.cards.length);
-      
-      // Рендерим с конца, чтобы первая карта была сверху в DOM
-      [...topic.cards].reverse().forEach(cardObj => {
-        deckContainer.appendChild(createCardElement(topic.name, cardObj));
-      });
-      setupTopCard();
+      bindTopCard();
     }
 
-    // Обработчик "Play" (Заглушка)
-    function onPlayAudio(cardObj) {
-      console.log("Playing audio for:", cardObj.text1);
-      // Здесь позже будет логика воспроизведения
-    }
-
-    // Создание DOM элемента карточки
-    function createCardElement(topicName, cardObj) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      
-      // Внутренняя структура карточки
-      card.innerHTML = `
-        <div class="card-content">
-          <div class="card-topic-label">${topicName}</div>
-          <div class="card-top-row">
-            <div class="card-text-primary">${cardObj.text1}</div>
+    function createCard(data) {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `
+        <div class="card-body">
+          <div class="card-main-row">
+            <div class="card-text-primary">${data.text1}</div>
             <button class="play-btn">▶</button>
           </div>
-          <div class="card-center-area">
+          <div class="card-text-secondary">${data.text2}</div>
+          <div class="card-eye-zone">
             <button class="reveal-btn">👁</button>
-            <div class="card-text-secondary">${cardObj.text2}</div>
           </div>
         </div>
         <div class="card-actions">
-          <button class="action-btn" data-action="left">‹ Удалить</button>
-          <button class="action-btn" data-action="right">В конец ›</button>
+          <button class="action-btn" data-swipe="left">Удалить</button>
+          <button class="action-btn" data-swipe="right">В конец</button>
         </div>
       `;
 
-      // Изолированные обработчики внутри карточки
-      const playBtn = card.querySelector('.play-btn');
-      const revealBtn = card.querySelector('.reveal-btn');
-      const textSecondary = card.querySelector('.card-text-secondary');
+      // Атомарные события
+      const eye = el.querySelector('.reveal-btn');
+      const secText = el.querySelector('.card-text-secondary');
+      const play = el.querySelector('.play-btn');
 
-      // Stop propagation чтобы клик не вызывал начало свайпа
-      playBtn.onpointerdown = (e) => e.stopPropagation(); 
-      playBtn.onclick = () => onPlayAudio(cardObj);
+      eye.onpointerdown = e => e.stopPropagation();
+      eye.onclick = () => { eye.parentElement.style.display = 'none'; secText.style.display = 'block'; };
+      
+      play.onpointerdown = e => e.stopPropagation();
+      play.onclick = () => console.log("Play:", data.text1);
 
-      revealBtn.onpointerdown = (e) => e.stopPropagation();
-      revealBtn.onclick = () => {
-        revealBtn.style.display = 'none';
-        textSecondary.style.display = 'block';
-      };
-
-      // Нижние кнопки
-      card.querySelectorAll('.action-btn').forEach(btn => {
-        btn.onpointerdown = (e) => e.stopPropagation();
-        btn.onclick = () => swipeCard(btn.dataset.action);
+      el.querySelectorAll('.action-btn').forEach(b => {
+        b.onpointerdown = e => e.stopPropagation();
+        b.onclick = () => triggerSwipe(b.dataset.swipe);
       });
 
-      return card;
+      return el;
     }
 
-    /* =========================================
-       4. ЛОГИКА СВАЙПОВ (DECK CONTROLLER)
-       ========================================= */
-    let activeCard = null;
-    let startX = 0, startY = 0, currentX = 0, currentY = 0;
-    let isDragging = false;
-    const THRESHOLD = window.innerWidth * 0.25;
-
-    function setupTopCard() {
-      const cards = deckContainer.querySelectorAll('.card');
-      if (cards.length === 0) return;
-      
+    /* 6. ЖЕСТЫ */
+    function bindTopCard() {
+      const cards = document.querySelectorAll('.card');
+      if (!cards.length) return;
       activeCard = cards[cards.length - 1];
-      activeCard.style.opacity = "1";
-      activeCard.style.transform = "scale(1) translateY(0)";
-      activeCard.onpointerdown = handlePointerDown;
+      activeCard.style.opacity = '1';
+      activeCard.style.transform = 'scale(1)';
+      activeCard.onpointerdown = e => {
+        dragData.isDragging = true;
+        dragData.startX = e.clientX; dragData.startY = e.clientY;
+        activeCard.classList.add('dragging');
+        activeCard.setPointerCapture(e.pointerId);
+        activeCard.onpointermove = moveEvent;
+        activeCard.onpointerup = endEvent;
+      };
     }
 
-    function handlePointerDown(e) {
-      // Игнорируем клики по кнопкам (они остановлены через stopPropagation)
-      isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      activeCard.classList.add('dragging');
-      activeCard.setPointerCapture(e.pointerId);
-      
-      activeCard.onpointermove = handlePointerMove;
-      activeCard.onpointerup = handlePointerUp;
-      activeCard.onpointercancel = handlePointerUp;
+    function moveEvent(e) {
+      if (!dragData.isDragging) return;
+      dragData.currentX = e.clientX - dragData.startX;
+      dragData.currentY = e.clientY - dragData.startY;
+      activeCard.style.transform = `translate(${dragData.currentX}px, ${dragData.currentY}px) rotate(${dragData.currentX * 0.05}deg)`;
     }
 
-    function handlePointerMove(e) {
-      if (!isDragging) return;
-      currentX = e.clientX - startX;
-      currentY = e.clientY - startY;
-      const rotation = currentX * 0.05;
-      activeCard.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
-    }
-
-    function handlePointerUp() {
-      if (!isDragging) return;
-      isDragging = false;
+    function endEvent() {
+      dragData.isDragging = false;
       activeCard.classList.remove('dragging');
-      
-      if (Math.abs(currentX) > THRESHOLD) {
-        swipeCard(currentX > 0 ? 'right' : 'left');
+      if (Math.abs(dragData.currentX) > THRESHOLD) {
+        triggerSwipe(dragData.currentX > 0 ? 'right' : 'left');
       } else {
-        activeCard.style.transform = ''; // Возврат в центр
+        activeCard.style.transform = '';
       }
-      currentX = 0;
-      activeCard.onpointermove = null;
+      dragData.currentX = 0; activeCard.onpointermove = null;
     }
 
-    function swipeCard(direction) {
+    function triggerSwipe(dir) {
       if (!activeCard) return;
-      
-      const moveX = direction === 'right' ? window.innerWidth * 1.5 : -window.innerWidth * 1.5;
-      activeCard.style.transform = `translate(${moveX}px, ${currentY}px) rotate(${direction === 'right' ? 20 : -20}deg)`;
+      const flyX = dir === 'right' ? window.innerWidth : -window.innerWidth;
+      activeCard.style.transform = `translate(${flyX}px, ${dragData.currentY}px) rotate(${dir === 'right' ? 20 : -20}deg)`;
       activeCard.style.opacity = '0';
-
-      const cardToMove = activeCard;
-      activeCard.onpointerdown = null; // снимаем слушатель
-
-      // Обновляем счетчик СРАЗУ при свайпе влево
-      if (direction === 'left') {
-        updateCounter(currentCardsRemaining - 1);
+      
+      const target = activeCard;
+      if (dir === 'left') {
+        const count = parseInt(document.getElementById('deck-counter').textContent);
+        document.getElementById('deck-counter').textContent = count - 1;
       }
 
       setTimeout(() => {
-        if (direction === 'left') {
-          cardToMove.remove();
-        } else {
-          // Вправо: возвращаем в низ колоды и сбрасываем состояние глазика
-          cardToMove.style.transition = 'none';
-          cardToMove.style.transform = '';
-          cardToMove.style.opacity = '0';
-          
-          // Сброс видимости text2
-          cardToMove.querySelector('.reveal-btn').style.display = 'flex';
-          cardToMove.querySelector('.card-text-secondary').style.display = 'none';
-
-          deckContainer.prepend(cardToMove);
-          setTimeout(() => cardToMove.style.transition = '', 50);
+        if (dir === 'left') target.remove();
+        else {
+          target.style.transition = 'none';
+          target.style.transform = '';
+          target.querySelector('.card-eye-zone').style.display = 'flex';
+          target.querySelector('.card-text-secondary').style.display = 'none';
+          document.getElementById('deck-container').prepend(target);
+          setTimeout(() => target.style.transition = '', 50);
         }
-        setupTopCard();
+        bindTopCard();
       }, 300);
     }
 
-    /* =========================================
-       5. ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
-       ========================================= */
-    
-    // Кнопка Назад из колоды
-    document.getElementById('btn-back').onclick = () => {
-      showView('topics');
-      deckContainer.innerHTML = ''; // Очищаем память
-    };
-
-    // Старт
-    api.fetchData().then(data => {
-      appData = data;
-      renderTopics(appData);
-      showView('topics');
-    });
-
+    /* 7. START */
+    document.getElementById('btn-back').onclick = () => showView('topics');
+    api.fetchData().then(data => { appData = data; renderTopics(data); showView('topics'); });
   </script>
 </body>
 </html>

@@ -346,7 +346,7 @@
                     
                     audio.onended = () => {
                         URL.revokeObjectURL(audioUrl);
-                        statusEl.textContent = '';
+                        statusEl.textContent = 'Ready';
                         this._isPlaying = false;
                     };
 

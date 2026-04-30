@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -14,6 +14,9 @@
             --danger: #ef4444;
             --success: #10b981;
             --border-color: rgba(255, 255, 255, 0.1);
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -27,9 +30,15 @@
         .view { display: none; height: 100vh; flex-direction: column; }
         .view.active { display: flex; }
 
+        /* Mobile Chrome: 100vh can exceed visible area (URL bar), cutting off footer. */
+        @supports (height: 100dvh) {
+            body { height: 100dvh; }
+            .view { height: 100dvh; }
+        }
+
         /* --- HEADER --- */
         .header { 
-            padding: 20px; display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 20px; display: flex; align-items: center; justify-content: space-between;
             border-bottom: 1px solid var(--border-color);
         }
         .header h1 { font-size: 1.1rem; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
@@ -39,9 +48,9 @@
         /* --- TOPICS --- */
         .topics-grid { padding: 15px; overflow-y: auto; display: grid; gap: 12px; }
         .topic-card { 
-            background: var(--card-bg); padding: 20px; border-radius: 16px;
+            background: var(--card-bg); padding: 18px 20px; border-radius: var(--radius-md);
             border: 1px solid var(--border-color); cursor: pointer;
-            transition: transform 0.1s;
+            transition: transform 0.1s, border-color 0.2s, background-color 0.2s;
         }
         .topic-card:active { transform: scale(0.98); }
 
@@ -53,46 +62,79 @@
 
         .card {
             position: absolute; inset: 0;
-            background-color: var(--card-bg); border-radius: 24px;
+            background-color: var(--card-bg); border-radius: var(--radius-lg);
             border: 1px solid var(--border-color);
             display: flex; flex-direction: column;
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             overflow: hidden;
-            transform: translate(var(--x, 0), var(--y, 0)) rotate(var(--r, 0));
+            transform: translate3d(var(--x, 0), var(--y, 0), 0) rotate(var(--r, 0));
             touch-action: none;
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
         .card.animating { transition: transform 0.4s cubic-bezier(0.15, 0.3, 0.25, 1), opacity 0.4s; }
         .card-active { z-index: 2; opacity: 1; }
-        .card-next { z-index: 1; transform: scale(0.96) translateY(10px); opacity: 0.4; }
+        /* Avoid text blur on mobile: scaling text layers during promotion causes resampling artifacts. */
+        .card-next { z-index: 1; transform: translate3d(0, 10px, 0); opacity: 0.45; }
 
-        .card-body { flex: 1; padding: 40px 24px; display: flex; flex-direction: column; align-items: flex-start; }
+        .card-body { flex: 1; padding: 36px 24px; display: flex; flex-direction: column; align-items: flex-start; }
         .card-text-primary { font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: 20px; }
         .card-text-secondary { font-size: 1.6rem; color: var(--accent); display: none; line-height: 1.3; }
         
         .card-eye-zone { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; }
         .reveal-btn {
-            width: 80px; height: 80px; background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border-color); border-radius: 20px;
-            color: var(--text-muted); font-size: 2rem;
+            width: 180px; height: 180px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color); border-radius: var(--radius-md);
+            color: var(--text-muted); font-size: 3rem;
             display: flex; justify-content: center; align-items: center; cursor: pointer;
         }
 
         /* --- FOOTER ACTION BAR --- */
         .footer {
-            padding: 20px 40px 40px;
+            padding: 14px 16px 12px;
             display: flex; justify-content: space-between; align-items: center;
+            gap: 10px;
         }
         .action-btn {
-            width: 64px; height: 64px; border-radius: 50%;
-            border: none; display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; cursor: pointer; color: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
+            flex: 1;
+            min-height: 50px;
+            padding: 0 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.03);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.92rem; font-weight: 550; letter-spacing: 0.01em;
+            cursor: pointer; color: var(--text-main);
+            transition: transform 0.08s, background-color 0.2s, border-color 0.2s;
+            user-select: none;
         }
-        .action-btn:active { transform: scale(0.9); }
-        .btn-repeat { background: #334155; } /* Тёмно-серый для повтора */
-        .btn-done { background: var(--success); }
+        .action-btn:active { transform: scale(0.988); }
+        .action-btn:hover { background: rgba(255,255,255,0.05); }
+        .btn-repeat,
+        .btn-done,
+        .btn-play {
+            background: rgba(255,255,255,0.03);
+            border-color: var(--border-color);
+        }
+        .btn-play {
+            border-color: rgba(59, 130, 246, 0.28);
+            color: #d4e5ff;
+        }
+
+        .play-status {
+            margin: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+            padding: 8px 12px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.84rem;
+            letter-spacing: 0.01em;
+            min-height: 1.4em;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.02);
+        }
 
         /* Loader */
         .loader-container { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
@@ -105,12 +147,12 @@
     <div id="view-loading" class="view active">
         <div class="loader-container">
             <div class="loader"></div>
-            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Загрузка колод...</p>
+            <p id="loading-msg" style="margin-top: 20px; color: var(--text-muted)">Loading decks...</p>
         </div>
     </div>
 
     <div id="view-topics" class="view">
-        <div class="header"><h1>Мои Слова</h1></div>
+        <div class="header"><h1>My Words</h1></div>
         <div id="topics-grid" class="topics-grid"></div>
     </div>
 
@@ -124,9 +166,11 @@
         <div id="card-stage"></div>
 
         <div class="footer">
-            <button class="action-btn btn-repeat" onclick="Engine.manualSwipe('right')">🔁</button>
-            <button class="action-btn btn-done" onclick="Engine.manualSwipe('left')">✓</button>
+            <button class="action-btn btn-done" onclick="Engine.manualSwipe('left')">Done</button>
+            <button class="action-btn btn-play" onclick="Engine.playActiveCard()">Play</button>
+            <button class="action-btn btn-repeat" onclick="Engine.manualSwipe('right')">Repeat</button>
         </div>
+        <div id="play-status" class="play-status">Ready</div>
     </div>
 
     <script>
@@ -141,7 +185,7 @@
 
         const api = {
             async fetchData() {
-                if (!CONFIG.apiKey || !CONFIG.sheetId) throw new Error("Конфиг не найден в URL");
+                if (!CONFIG.apiKey || !CONFIG.sheetId) throw new Error("Missing URL config");
                 const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.sheetId}?key=${CONFIG.apiKey}`);
                 const meta = await metaRes.json();
                 if (meta.error) throw new Error(meta.error.message);
@@ -252,6 +296,28 @@
                 if (top) this.swipe(top, dir);
             },
 
+            playActiveCard() {
+                const statusEl = document.getElementById('play-status');
+                const top = document.querySelector('.card-active');
+                if (!statusEl) return;
+
+                if (!top) {
+                    statusEl.textContent = 'No active card';
+                    return;
+                }
+
+                const payload = { text1: top.dataset.t1 || '', text2: top.dataset.t2 || '' };
+                //statusEl.textContent = JSON.stringify(payload);
+                statusEl.textContent = 'Loading...';
+
+                // Заглушка под реальный запрос (имитация fetch)
+                setTimeout(() => {
+                    const ok = Math.random() > 0.15;
+                    statusEl.textContent = ok ? 'Success' : 'Error';
+                    void payload; // payload пока не используется, но сохраняем как основу для будущего fetch
+                }, 1000);
+            },
+
             swipe(el, dir) {
                 el.classList.add('animating');
                 const outX = dir === 'right' ? 1000 : -1000;
@@ -287,7 +353,7 @@
             Object.keys(appData).forEach(name => {
                 const div = document.createElement('div');
                 div.className = 'topic-card';
-                div.innerHTML = `<strong>${name}</strong><div style="color:var(--text-muted); font-size:0.8rem; margin-top:5px">${appData[name].length} карточек</div>`;
+                div.innerHTML = `<strong>${name}</strong><div style="color:var(--text-muted); font-size:0.8rem; margin-top:5px">${appData[name].length} cards</div>`;
                 div.onclick = () => Engine.initDeck(name);
                 grid.appendChild(div);
             });
@@ -299,7 +365,7 @@
                 renderTopics();
                 showView('topics');
             } catch (err) {
-                document.getElementById('loading-msg').innerHTML = `<span style="color:#ff6b6b">Ошибка: ${err.message}</span>`;
+                document.getElementById('loading-msg').innerHTML = `<span style="color:#ff6b6b">Error: ${err.message}</span>`;
             }
         };
     </script>

@@ -296,26 +296,74 @@
                 if (top) this.swipe(top, dir);
             },
 
-            playActiveCard() {
+            playActiveCard: async function() {
                 const statusEl = document.getElementById('play-status');
                 const top = document.querySelector('.card-active');
+                
                 if (!statusEl) return;
-
                 if (!top) {
                     statusEl.textContent = 'No active card';
                     return;
                 }
 
-                const payload = { text1: top.dataset.t1 || '', text2: top.dataset.t2 || '' };
-                //statusEl.textContent = JSON.stringify(payload);
+                const phrase = (top.dataset.t1 || '').trim();
+                if (!phrase) {
+                    statusEl.textContent = 'Empty phrase';
+                    return;
+                }
+
+                // Защита от повторных кликов
+                if (this._isPlaying) return;
+                this._isPlaying = true;
+
                 statusEl.textContent = 'Loading...';
 
-                // Заглушка под реальный запрос (имитация fetch)
-                setTimeout(() => {
-                    const ok = Math.random() > 0.15;
-                    statusEl.textContent = ok ? 'Success' : 'Error';
-                    void payload; // payload пока не используется, но сохраняем как основу для будущего fetch
-                }, 1000);
+                try {
+                    const cacheKey = `tts-${phrase}`;
+                    const cache = await caches.open('tts-audio-cache');
+
+                    let response = await cache.match(cacheKey);
+
+                    if (!response) {
+                        statusEl.textContent = 'Generating audio...';
+
+                        const url = `https://reword-france-463001342259.northamerica-northeast2.run.app/get_voice?phrase=${encodeURIComponent(phrase)}`;
+                        
+                        response = await fetch(url);
+
+                        if (!response.ok) {
+                            throw new Error(`Server returned ${response.status}`);
+                        }
+
+                        // Сохраняем в кэш браузера
+                        await cache.put(cacheKey, response.clone());
+                    }
+
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+
+                    const audio = new Audio(audioUrl);
+                    
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        statusEl.textContent = '';
+                        this._isPlaying = false;
+                    };
+
+                    audio.onerror = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        statusEl.textContent = 'Playback error';
+                        this._isPlaying = false;
+                    };
+
+                    await audio.play();
+                    statusEl.textContent = '▶ Playing';
+
+                } catch (error) {
+                    console.error('Play error:', error);
+                    statusEl.textContent = 'Failed to play';
+                    this._isPlaying = false;
+                }
             },
 
             swipe(el, dir) {

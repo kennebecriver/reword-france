@@ -134,12 +134,79 @@
             border: 1px solid var(--border-color);
             border-radius: var(--radius-sm);
             background: rgba(255,255,255,0.02);
+            min-width: 140px;           /* Фиксируем минимальную ширину */
+            display: inline-flex;       /* Используем flex для центрирования */
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;           /* Скрываем выходящий текст */
+            text-overflow: ellipsis;    /* Добавляем многоточие если текст не влезает */
+            white-space: nowrap;
         }
 
         /* Loader */
         .loader-container { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         .loader { width: 40px; height: 40px; border: 3px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* === Toggle Switch Styles === */
+        .toggle-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+            padding: 4px 0;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--border-color);
+            border-radius: 26px;
+            transition: 0.3s;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: var(--text-main);
+            border-radius: 50%;
+            transition: 0.3s transform;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--accent);
+        }
+        
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(18px);
+        }
+        
+        .toggle-label {
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            user-select: none;
+            letter-spacing: 0.01em;
+        }        
     </style>
 </head>
 <body>
@@ -171,6 +238,14 @@
             <button class="action-btn btn-repeat" onclick="Engine.manualSwipe('right')">Repeat</button>
         </div>
         <div id="play-status" class="play-status">Ready</div>
+        <!-- Auto-play Toggle -->
+        <div class="toggle-wrapper">
+            <label class="toggle-switch">
+                <input type="checkbox" id="auto-play-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Auto-play</span>
+        </div>
     </div>
 
     <script>
@@ -416,6 +491,44 @@
                 document.getElementById('loading-msg').innerHTML = `<span style="color:#ff6b6b">Error: ${err.message}</span>`;
             }
         };
+    </script>
+    <script>
+    (function() {
+        const toggle = document.getElementById('auto-play-toggle');
+        if (!toggle) return;
+        
+        // Сохраняем оригинальный метод spawn
+        const originalSpawn = Engine.spawn;
+        
+        // Переопределяем spawn для авто-запуска
+        Engine.spawn = function() {
+            originalSpawn.apply(this, arguments);
+            
+            if (toggle.checked) {
+                // Небольшая задержка для стабильности анимации
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        const activeCard = document.querySelector('.card-active');
+                        // Запускаем только если карта активна и нет текущего воспроизведения
+                        if (activeCard && !Engine._isPlaying) {
+                            Engine.playActiveCard();
+                        }
+                    }, 150);
+                });
+            }
+        };
+        
+        // Обработчик переключения тумблера
+        toggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // Если включили тумблер - сразу проигрываем текущую карту
+                const activeCard = document.querySelector('.card-active');
+                if (activeCard && !Engine._isPlaying) {
+                    setTimeout(() => Engine.playActiveCard(), 50);
+                }
+            }
+        });
+    })();
     </script>
 </body>
 </html>

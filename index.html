@@ -39,9 +39,16 @@
 
         /* --- HEADER --- */
         .header { 
-            padding: 18px 20px; display: flex; align-items: center; justify-content: space-between;
+            padding: 18px 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
             border-bottom: 1px solid var(--border-color);
+            gap: 12px;
         }
+
+
+        
         .header h1 { font-size: 1.1rem; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
         .back-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; padding: 0 10px; }
         #deck-counter { font-variant-numeric: tabular-nums; background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 8px; font-size: 0.9rem; }
@@ -245,6 +252,62 @@
             50% { transform: rotate(180deg) scale(1.15); }
             100% { transform: rotate(0deg) scale(1); }
         }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto; /* Прижимает вправо */
+        }
+        
+        /* Обновите #deck-counter, убрав лишние отступы */
+        #deck-counter { 
+            font-variant-numeric: tabular-nums; 
+            background: rgba(255,255,255,0.05); 
+            padding: 4px 10px; 
+            border-radius: 8px; 
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        
+        /* Обновите .shuffle-btn */
+        .shuffle-btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.2s;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        
+        .shuffle-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: var(--text-main);
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+        
+        .shuffle-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .shuffle-btn.shuffling {
+            animation: shuffle-pop 0.25s ease-out;
+        }
+        
+        @keyframes shuffle-pop {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -265,8 +328,10 @@
         <div class="header">
             <button class="back-btn" onclick="showView('topics')">✕</button>
             <h1 id="deck-title">---</h1>
-            <span id="deck-counter">0</span>
-            <button class="shuffle-btn" id="shuffle-btn" title="Shuffle deck">🗱</button>
+            <div class="header-controls">
+                <span id="deck-counter">0</span>
+                <button class="shuffle-btn" id="shuffle-btn" title="Shuffle deck">☠</button>
+            </div>
         </div>
         
         <div id="card-stage"></div>

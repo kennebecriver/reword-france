@@ -250,6 +250,9 @@
     </div>
 
     <script>
+        const path = window.location.pathname;
+        const IS_GEMINI_MODE = path.includes('/GEMINI_TTS/'); 
+        
         const params = new URLSearchParams(window.location.search);
         const CONFIG = {
             apiKey: params.get('key'),
@@ -403,7 +406,8 @@
                     if (!response) {
                         statusEl.textContent = 'Generating audio...';
 
-                        const url = `https://reword-france-463001342259.northamerica-northeast2.run.app/get_voice?phrase=${encodeURIComponent(phrase)}`;
+                        const modelParam = IS_GEMINI_MODE ? '&model=gemini' : '';
+                        const url = `https://reword-france-463001342259.northamerica-northeast2.run.app/get_voice?phrase=${encodeURIComponent(phrase)}${modelParam}`;
                         
                         response = await fetch(url);
 

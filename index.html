@@ -505,45 +505,43 @@
                 const total = currentSession.length + document.getElementById('card-stage').children.length;
                 document.getElementById('deck-counter').textContent = total;
                 if (total === 0) showView('topics');
-            }
-        };
-
-        // Fisher-Yates shuffle: перемешивает массив «на месте»
-        _shuffleArray(arr) {
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
-            }
-            return arr;
-        },
-        
-        // Публичный метод для перемешивания колоды
-        shuffleDeck() {
-            // 1. Перемешиваем очередь будущих карт
-            this._shuffleArray(currentSession);
+            },
+             // Fisher-Yates shuffle: перемешивает массив «на месте»
+            _shuffleArray(arr) {
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                return arr;
+            },
             
-            // 2. Обновляем превью следующей карты (если есть), чтобы отразить новый порядок
-            const stage = document.getElementById('card-stage');
-            const nextCard = stage?.firstElementChild; // card-next
-            
-            if (nextCard && currentSession.length > 0) {
-                // Заменяем превью на новую первую карту из перемешанной очереди
-                const newData = currentSession.shift();
-                const newNext = this.createCardEl(newData);
-                newNext.className = 'card card-next animating';
-                nextCard.replaceWith(newNext);
+            // Публичный метод для перемешивания колоды
+            shuffleDeck() {
+                // 1. Перемешиваем очередь будущих карт
+                this._shuffleArray(currentSession);
+                
+                // 2. Обновляем превью следующей карты (если есть), чтобы отразить новый порядок
+                const stage = document.getElementById('card-stage');
+                const nextCard = stage?.firstElementChild; // card-next
+                
+                if (nextCard && currentSession.length > 0) {
+                    // Заменяем превью на новую первую карту из перемешанной очереди
+                    const newData = currentSession.shift();
+                    const newNext = this.createCardEl(newData);
+                    newNext.className = 'card card-next animating';
+                    nextCard.replaceWith(newNext);
+                }
+                
+                // 3. Визуальный фидбек на кнопке
+                const btn = document.getElementById('shuffle-btn');
+                if (btn) {
+                    btn.classList.add('shuffling');
+                    setTimeout(() => btn.classList.remove('shuffling'), 200);
+                }
+                
+                console.log(`🔀 Deck shuffled: ${currentSession.length} cards in queue`);
             }
-            
-            // 3. Визуальный фидбек на кнопке
-            const btn = document.getElementById('shuffle-btn');
-            if (btn) {
-                btn.classList.add('shuffling');
-                setTimeout(() => btn.classList.remove('shuffling'), 200);
-            }
-            
-            console.log(`🔀 Deck shuffled: ${currentSession.length} cards in queue`);
-        },
-        
+        };        
 
         function showView(id) {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));

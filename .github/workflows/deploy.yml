@@ -22,6 +22,7 @@ jobs:
         run: |
           mkdir -p GEMINI_TTS
           cp index.html GEMINI_TTS/index.html
+          cp favicon.ico GEMINI_TTS/favicon.ico
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5

@@ -363,12 +363,26 @@
                 <span class="toggle-slider"></span>
             </label>
             <span class="toggle-label">Auto-play</span>
+            <label class="toggle-switch" style="margin-left: 14px;">
+                <input type="checkbox" id="gemini-mode-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Gemini</span>
         </div>
     </div>
 
     <script>
         const path = window.location.pathname;
-        const IS_GEMINI_MODE = path.includes('/GEMINI_TTS/'); 
+        let IS_GEMINI_MODE = path.includes('/GEMINI_TTS/');
+        const _geminiToggle = document.getElementById('gemini-mode-toggle');
+        if (_geminiToggle) {
+            _geminiToggle.checked = IS_GEMINI_MODE;
+            _geminiToggle.addEventListener('change', e => { IS_GEMINI_MODE = e.target.checked; });
+            if (!IS_GEMINI_MODE) {
+                _geminiToggle.closest('label').style.display = 'none';
+                _geminiToggle.closest('label').nextElementSibling.style.display = 'none';
+            }
+        } 
         
         const params = new URLSearchParams(window.location.search);
         const CONFIG = {

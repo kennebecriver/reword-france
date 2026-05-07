@@ -529,10 +529,13 @@
                 statusEl.textContent = 'Loading...';
 
                 try {
-                    const cacheKey = `tts-${phrase}`;
+                    const cacheKey = `tts-${IS_GEMINI_MODE ? 'gemini' : 'default'}-${phrase}`;
                     const cache = await caches.open('tts-audio-cache');
 
-                    let response = await cache.match(cacheKey);
+                    // КОСТЫЛЬ: проверяем старый ключ без модели — удалить когда старый кэш истечёт
+                    const legacyCacheKey = `tts-${phrase}`;
+                    let response = await cache.match(legacyCacheKey) || await cache.match(cacheKey);
+                    // КОНЕЦ КОСТЫЛЯ
 
                     if (!response) {
                         statusEl.textContent = 'Generating audio...';
